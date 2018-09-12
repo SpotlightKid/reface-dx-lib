@@ -1,0 +1,15 @@
+Yamaha Reface DX Patch Librarian
+================================
+
+
+Ideas
+-----
+
+* Auswahl MIDI in/output über dynmische drop-down menus
+* Wertung (Stars * - *****) und/oder Favorite-List für Patches
+* Patch-Import mit Auswahl von Tags für alle importierten Sounds
+* Auto-Tag-Zuweisung auf Grundlage von Patch und/oder Dateinamen
+* Filterung nach Patch / Dateinamen
+* Filterung nach Tags
+* Filterung nach Erstellungs/Importdatum
+* Filterung nach Autor
