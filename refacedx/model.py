@@ -21,7 +21,6 @@ from sqlalchemy import (
     Boolean, Column, DateTime, ForeignKey, Integer, LargeBinary, Sequence, String, Table,
     TypeDecorator, Unicode, create_engine)
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, relationship, scoped_session, sessionmaker
 
 
@@ -96,14 +95,15 @@ def get_or_create(session, model, create_method='', create_method_kwargs=None, *
             return session.query(model).filter_by(**kwargs).one(), True
 
 
-def initdb(db_uri, session=None, debug=False):
+def initdb(db_uri, session=None, drop_all=False, debug=False):
     """Create all tables in the database and add an initial admin user."""
     if not session:
         session = configure_session(db_uri, debug=debug)
 
     with session.begin():
-        Base.metadata.drop_all(bind=session.get_bind())
-        Base.metadata.create_all(bind=session.get_bind())
+        if drop_all:
+            Base.metadata.drop_all(bind=session.get_bind())
+        Base.metadata.create_all(bind=session.get_bind(), checkfirst=True)
 
     return session
 

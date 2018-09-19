@@ -2,8 +2,8 @@
 #
 # refacedx/viewmodel.py
 
-from PyQt5 import QtGui, QtCore
-from PyQt5.QtCore import Qt
+from PyQt5 import QtGui
+from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex
 from PyQt5.QtWidgets import QHeaderView, QAbstractItemView
 
 from sqlalchemy import inspect
@@ -11,12 +11,12 @@ from sqlalchemy import inspect
 from .model import Patch
 
 
-class SQLAlchemyTableModel(QtCore.QAbstractTableModel):
+class SQLAlchemyTableModel(QAbstractTableModel):
     fields = None
     list_order = None
 
     def __init__(self, session, view, model=None, parent=None):
-        QtCore.QAbstractTableModel.__init__(self, parent)
+        super().__init__(parent)
         self._session = session
 
         if model:
@@ -56,6 +56,11 @@ class SQLAlchemyTableModel(QtCore.QAbstractTableModel):
         if f:
             return f(index, value)
         return '' if value is None else str(value)
+
+    def get_row(self, row):
+        if isinstance(row, QModelIndex):
+            row = row.row()
+        return self._rows[row]
 
     def get_list_query(self):
         return self._session.query(self.model)

@@ -10,6 +10,7 @@ from rtmidi.midiconstants import PROGRAM_CHANGE, SYSTEM_EXCLUSIVE
 from rtmidi.midiutil import open_midiinput, open_midioutput
 
 from .constants import *
+from .util import split_sysex
 
 
 class TimeoutError(Exception):
@@ -21,7 +22,7 @@ class RefaceDX:
 
     def __init__(self, inport=None, outport=None, device=0, channel=0, timeout=5.0, debug=False):
         self.midiin, self.midiin_name = open_midiinput(inport)
-        self.midiout, self.midiout_name = open_midioutput(inport)
+        self.midiout, self.midiout_name = open_midioutput(inport if outport is None else outport)
         self.device = device
         self.channel = channel
         self.debug = debug
@@ -66,7 +67,11 @@ class RefaceDX:
                 print("RECV:", msg)
             self.queue.put(msg)
 
-    def send_patch(self, *names):
+    def send_patch(self, data):
+        for msg in split_sysex(data):
+            self._send(msg)
+
+    def send_patchfile(self, *names):
         path = join(*names)
         with open(path, 'rb') as syx:
             for msg in split_sysex(syx.read()):
