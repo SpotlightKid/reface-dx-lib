@@ -8,7 +8,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex, QVariant
 from PyQt5.QtWidgets import QHeaderView, QAbstractItemView
 
-from sqlalchemy import desc, inspect
+from sqlalchemy import desc as sa_desc, inspect
 
 from .model import Author, Patch
 
@@ -44,11 +44,11 @@ class SQLAlchemyTableModel(QAbstractTableModel):
             mode = self.resize_mode.get(field, QHeaderView.ResizeToContents)
             header.setSectionResizeMode(i, mode)
 
-    def _update(self, order=None, desc_=False):
+    def _update(self, order=None, desc=False):
         query = self.get_list_query()
         if not order and self.list_order:
             if isinstance(self.list_order, str) and self.list_order.endswith('-'):
-                desc_ = True
+                desc = True
                 order = self.list_order[-1:]
             else:
                 order = self.list_order
@@ -57,9 +57,9 @@ class SQLAlchemyTableModel(QAbstractTableModel):
             field = getattr(self.sa_model, order)
             relation = self.sort_relations.get(order)
             if relation:
-                query.outerjoin(field).order_by(desc(relation) if desc_ else relation)
+                query.outerjoin(field).order_by(sa_desc(relation) if desc else relation)
             else:
-                query = query.order_by(desc(field) if desc_ else field)
+                query = query.order_by(sa_desc(field) if desc else field)
 
         self._rows = query.all()
 
@@ -130,39 +130,27 @@ class SQLAlchemyTableModel(QAbstractTableModel):
     def sort(self, col, order):
         """Sort table by given column number col"""
         self.layoutAboutToBeChanged.emit()
-        self._update(order=self.fields[col][0], desc_=order == Qt.DescendingOrder)
+        self._update(order=self.fields[col][0], desc=order == Qt.DescendingOrder)
         self.layoutChanged.emit()
 
     # INSERTING & REMOVING
 
-    def removeRows(self, row, numrows=1, index=QModelIndex()):
-        log.debug("Removing %i rows at row: %s", numrows, row)
-        self.beginRemoveRows(QModelIndex(), row, row + numrows - 1)
-        for i in range(row, row + numrows):
+    def removeRows(self, pos, numrows=1, index=QModelIndex()):
+        log.debug("Removing %i rows at row: %s", numrows, pos)
+        self.beginRemoveRows(QModelIndex(), pos, pos + numrows - 1)
+        for i in range(pos, pos + numrows):
             item = self._rows.pop(i)
             self._session.delete(item)
         self.endRemoveRows()
         return True
 
-# ~    def insertRows(self, position, rows, parent=QtCore.QModelIndex()):
-# ~        self.beginInsertRows(parent, position, position + rows - 1)
+# ~    def insertRows(self, pos, numrows, parent=QModelIndex()):
+# ~        self.beginInsertRows(parent, pos, pos + numrows - 1)
 
-# ~        for i in range(rows):
-# ~            self._patches.insert(position, patch)
+# ~        for i in range(numrows):
+# ~            self._patches.insert(pos, patch)
 
 # ~        self.endInsertRows()
-# ~        return True
-
-
-# ~    def insertColumns(self, position, columns, parent=QtCore.QModelIndex()):
-# ~        self.beginInsertColumns(parent, position, position + columns - 1)
-# ~        rowCount = len(self._patches)
-
-# ~        for i in range(columns):
-# ~            for j in range(rowCount):
-# ~                self._patches[j].insert(position, QtGui.QColor("#000000"))
-
-# ~        self.endInsertColumns()
 # ~        return True
 
 

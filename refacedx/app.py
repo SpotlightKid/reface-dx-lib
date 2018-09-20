@@ -160,18 +160,18 @@ class RefaceDXLibApp(QApplication):
         if files:
             self.config.setValue('paths/last_import_path', dirname(files[0]))
 
-            for file in files:
-                with open(file, 'rb') as syx:
-                    data = syx.read()
+            self.patches.layoutAboutToBeChanged.emit()
+            with self.session.begin():
+                for file in files:
+                    with open(file, 'rb') as syx:
+                        data = syx.read()
 
-                assert len(data) == 241
-                if is_reface_dx_voice(data):
-                    self.session.begin()
-                    name = get_patch_name(data)
-                    displayname = splitext(basename(file))[0]
-                    patch = Patch(name=name, displayname=displayname, data=data)
-                    self.session.add(patch)
-                    self.session.commit()
+                    assert len(data) == 241
+                    if is_reface_dx_voice(data):
+                        name = get_patch_name(data)
+                        displayname = splitext(basename(file))[0].replace('_', ' ').strip()
+                        patch = Patch(name=name, displayname=displayname, data=data)
+                        self.session.add(patch)
 
             self.patches._update()
             self.patches.layoutChanged.emit()
