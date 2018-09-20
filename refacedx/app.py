@@ -127,17 +127,19 @@ class RefaceDXLibApp(QApplication):
     def delete_patches(self):
         if self.mainwin.selection.hasSelection():
             rows = sorted([r.row() for r in self.mainwin.selection.selectedRows()])
+            patches = tuple(self.patches.get_row(r).displayname for r in rows)
             msg_box = QMessageBox()
 
             if len(rows) == 1:
-                name = self.patches.get_row(rows[0]).displayname
-                msg_box.setText("Delete patch '{}'?".format(name))
+                msg_box.setText("Delete patch '{}'?".format(patches[0]))
             else:
                 msg_box.setText("Delete {} patches?".format(len(rows)))
+                msg_box.setDetailedText('\n'.join(patches))
 
-            msg_box.setInformativeText("Patches can only be restorted by re-importing them.");
+            msg_box.setInformativeText("Patches can only be restored by re-importing them.");
             msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel);
             msg_box.setDefaultButton(QMessageBox.Cancel);
+            msg_box.setIcon(QMessageBox.Warning)
 
             if msg_box.exec_() == QMessageBox.Yes:
                 with self.session.begin():
