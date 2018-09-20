@@ -169,7 +169,7 @@
     <string>&amp;Import Patch(es)...</string>
    </property>
    <property name="toolTip">
-    <string>Import patch from SysEx file</string>
+    <string>Import patch(es) from SysEx file(s)</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+I</string>
@@ -195,7 +195,8 @@
   </action>
   <action name="action_request">
    <property name="icon">
-    <iconset theme="stock_down"/>
+    <iconset theme="stock_down">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Request Patch </string>
@@ -220,7 +221,8 @@
   </action>
   <action name="action_open">
    <property name="icon">
-    <iconset theme="document-open"/>
+    <iconset theme="document-open">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Open patch database</string>

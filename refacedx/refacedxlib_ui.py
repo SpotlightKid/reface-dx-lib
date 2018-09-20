@@ -123,7 +123,7 @@ class Ui_MainWindow(object):
         self.action_quit.setToolTip(_translate("MainWindow", "Exit application"))
         self.action_quit.setShortcut(_translate("MainWindow", "Ctrl+Q"))
         self.action_import.setText(_translate("MainWindow", "&Import Patch(es)..."))
-        self.action_import.setToolTip(_translate("MainWindow", "Import patch from SysEx file"))
+        self.action_import.setToolTip(_translate("MainWindow", "Import patch(es) from SysEx file(s)"))
         self.action_import.setShortcut(_translate("MainWindow", "Ctrl+I"))
         self.action_send.setText(_translate("MainWindow", "&Send Patch(es)"))
         self.action_send.setToolTip(_translate("MainWindow", "Send selected patch to MIDI output"))
