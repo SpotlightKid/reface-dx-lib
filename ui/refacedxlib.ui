@@ -42,7 +42,22 @@
           <property name="sizeAdjustPolicy">
            <enum>QAbstractScrollArea::AdjustToContents</enum>
           </property>
+          <property name="editTriggers">
+           <set>QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed</set>
+          </property>
+          <property name="selectionBehavior">
+           <enum>QAbstractItemView::SelectRows</enum>
+          </property>
+          <property name="sortingEnabled">
+           <bool>true</bool>
+          </property>
+          <attribute name="horizontalHeaderVisible">
+           <bool>true</bool>
+          </attribute>
           <attribute name="horizontalHeaderStretchLastSection">
+           <bool>false</bool>
+          </attribute>
+          <attribute name="verticalHeaderVisible">
            <bool>false</bool>
           </attribute>
          </widget>
@@ -76,11 +91,29 @@
     <property name="title">
      <string>&amp;File</string>
     </property>
-    <addaction name="action_import"/>
+    <addaction name="separator"/>
+    <addaction name="action_open"/>
     <addaction name="separator"/>
     <addaction name="action_quit"/>
    </widget>
+   <widget class="QMenu" name="menu_MIDI">
+    <property name="title">
+     <string>&amp;MIDI</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menu_Patch">
+    <property name="title">
+     <string>&amp;Patch</string>
+    </property>
+    <addaction name="action_import"/>
+    <addaction name="action_request"/>
+    <addaction name="action_send"/>
+    <addaction name="separator"/>
+    <addaction name="action_delete"/>
+   </widget>
    <addaction name="menu_File"/>
+   <addaction name="menu_Patch"/>
+   <addaction name="menu_MIDI"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QToolBar" name="toolBar">
@@ -94,11 +127,13 @@
     <bool>false</bool>
    </attribute>
    <addaction name="action_import"/>
+   <addaction name="action_request"/>
    <addaction name="action_send"/>
   </widget>
   <action name="action_quit">
    <property name="icon">
-    <iconset theme="application-exit"/>
+    <iconset theme="application-exit">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Quit</string>
@@ -127,33 +162,74 @@
   </action>
   <action name="action_import">
    <property name="icon">
-    <iconset theme="document-open"/>
+    <iconset theme="document-import">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
-    <string>&amp;Import Patch</string>
+    <string>&amp;Import Patch(es)...</string>
    </property>
    <property name="toolTip">
     <string>Import patch from SysEx file</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+O</string>
+    <string>Ctrl+I</string>
    </property>
   </action>
   <action name="action_send">
    <property name="icon">
-    <iconset theme="document-send"/>
+    <iconset theme="document-send">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
-    <string>Send</string>
+    <string>&amp;Send Patch(es)</string>
    </property>
    <property name="toolTip">
     <string>Send selected patch to MIDI output</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+Return</string>
+    <string>Space</string>
    </property>
    <property name="iconVisibleInMenu">
     <bool>false</bool>
+   </property>
+  </action>
+  <action name="action_request">
+   <property name="icon">
+    <iconset theme="stock_down"/>
+   </property>
+   <property name="text">
+    <string>&amp;Request Patch </string>
+   </property>
+   <property name="toolTip">
+    <string>Request and receive SysEx patch from Synthesizer</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
+   </property>
+  </action>
+  <action name="action_delete">
+   <property name="text">
+    <string>&amp;Delete Patch(es)</string>
+   </property>
+   <property name="toolTip">
+    <string>Delete selected patch(es) from database</string>
+   </property>
+   <property name="shortcut">
+    <string>Del</string>
+   </property>
+  </action>
+  <action name="action_open">
+   <property name="icon">
+    <iconset theme="document-open"/>
+   </property>
+   <property name="text">
+    <string>&amp;Open patch database</string>
+   </property>
+   <property name="toolTip">
+    <string>Load patch database from file</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
    </property>
   </action>
  </widget>

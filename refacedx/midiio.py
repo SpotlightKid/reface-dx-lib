@@ -3,14 +3,18 @@
 #
 # refacedx/midiio.py
 
+import logging
+
 from os.path import join
 from queue import Empty, Queue
 
 from rtmidi.midiconstants import PROGRAM_CHANGE, SYSTEM_EXCLUSIVE
-from rtmidi.midiutil import open_midiinput, open_midioutput
 
 from .constants import *
 from .util import split_sysex
+
+
+log = logging.getLogger(__name__)
 
 
 class TimeoutError(Exception):
@@ -20,20 +24,29 @@ class TimeoutError(Exception):
 
 class RefaceDX:
 
-    def __init__(self, inport=None, outport=None, device=0, channel=0, timeout=5.0, debug=False):
-        self.midiin, self.midiin_name = open_midiinput(inport)
-        self.midiout, self.midiout_name = open_midioutput(inport if outport is None else outport)
+    def __init__(self, midiin=None, midiout=None, device=0, channel=0, timeout=5.0, debug=False):
+        self.midiin = midiin
+        self.midiout = midiout
         self.device = device
         self.channel = channel
         self.debug = debug
-        self.midiin.ignore_types(sysex=False)
-        self.midiin.set_callback(self._msg_callback)
         self.timeout = timeout
         self.queue = Queue()
 
+    @property
+    def midiin(self):
+        return self._midiin
+
+    @midiin.setter
+    def midiin(self, value):
+        self._midiin = value
+        if self._midiin:
+            self._midiin.ignore_types(sysex=False)
+            self._midiin.set_callback(self._msg_callback)
+
     def _send(self, msg):
         if self.debug:
-            print("SEND:", msg)
+            log.debug("MIDI SEND: %r", msg)
         if self.midiout:
             self.midiout.send_message(msg)
 
@@ -64,7 +77,7 @@ class RefaceDX:
         msg, delta = event
         if msg[0] == SYSTEM_EXCLUSIVE:
             if self.debug:
-                print("RECV:", msg)
+                log.debug("MIDI RECV: %r", msg)
             self.queue.put(msg)
 
     def send_patch(self, data):
@@ -74,8 +87,7 @@ class RefaceDX:
     def send_patchfile(self, *names):
         path = join(*names)
         with open(path, 'rb') as syx:
-            for msg in split_sysex(syx.read()):
-                self._send(msg)
+            self.send_patch(sys.read())
 
     def send_program_change(self, program, channel=None):
         if channel is None:

@@ -43,10 +43,8 @@ def configure_session(db_uri, sessionmaker=Session, debug=False):
     return sessionmaker()
 
 
-def create_test_data(config):
+def create_test_data(session):
     from functools import partial
-
-    session = initdb(config['db_uri'], config['debug'])
 
     with session.begin():
         t1 = Tag(name='lead', description='Lead sound')
@@ -95,7 +93,7 @@ def get_or_create(session, model, create_method='', create_method_kwargs=None, *
             return session.query(model).filter_by(**kwargs).one(), True
 
 
-def initdb(db_uri, session=None, drop_all=False, debug=False):
+def initdb(db_uri=None, session=None, drop_all=False, debug=False):
     """Create all tables in the database and add an initial admin user."""
     if not session:
         session = configure_session(db_uri, debug=debug)
@@ -235,12 +233,12 @@ if __name__ == '__main__':
         #'debug': True,
         'debug': False,
     }
-    initdb(config['db_uri'], config['debug'])
-    session = configure_session(config['db_uri'], debug=config['debug'])
+    session = initdb(config['db_uri'], config['debug'])
+    create_test_data(session)
 
-    session.begin()
-    print(session.query(Tag).all())
-    print(session.query(Author).all())
-    for patch in  session.query(Patch).all():
-        print(patch)
-        print("Tags:", ", ".join(tag.name for tag in patch.tags))
+    with session.begin():
+        print(session.query(Tag).all())
+        print(session.query(Author).all())
+        for patch in  session.query(Patch).all():
+            print(patch)
+            print("Tags:", ", ".join(tag.name for tag in patch.tags))

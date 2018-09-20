@@ -2,45 +2,64 @@
 #
 # refacedx/viewmodel.py
 
+import logging
+
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex
+from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex, QVariant
 from PyQt5.QtWidgets import QHeaderView, QAbstractItemView
 
-from sqlalchemy import inspect
+from sqlalchemy import desc, inspect
 
-from .model import Patch
+from .model import Author, Patch
+
+
+log = logging.getLogger(__name__)
 
 
 class SQLAlchemyTableModel(QAbstractTableModel):
     fields = None
     list_order = None
+    sort_relations = {}
 
-    def __init__(self, session, view, model=None, parent=None):
+    def __init__(self, session, sa_model=None, parent=None):
         super().__init__(parent)
         self._session = session
 
-        if model:
-            self.model = model
+        if sa_model:
+            self.sa_model = sa_model
 
-        if self.fields is None:
-            mapper = inspect(model)
+        if self.sa_model and self.fields is None:
+            mapper = inspect(self.sa_model)
             self.fields = mapper.column_attrs.keys()
 
+        log.debug("Fields: %r", self.fields)
         self.fields = tuple((f, f.capitalize()) if isinstance(f, str) else f
-                             for f in self.fields)
+                            for f in self.fields or [])
         self._update()
-        view.setModel(self)
-        view.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.selection = view.selectionModel()
+
+    def adapt_view(self, view):
+        """Adapt table view display options according to model fields."""
         header = view.horizontalHeader()
         for i, (field, _) in enumerate(self.fields):
             mode = self.resize_mode.get(field, QHeaderView.ResizeToContents)
             header.setSectionResizeMode(i, mode)
 
-    def _update(self):
+    def _update(self, order=None, desc_=False):
         query = self.get_list_query()
-        if self.list_order:
-            query = query.order_by(self.list_order)
+        if not order and self.list_order:
+            if isinstance(self.list_order, str) and self.list_order.endswith('-'):
+                desc_ = True
+                order = self.list_order[-1:]
+            else:
+                order = self.list_order
+
+        if order:
+            field = getattr(self.sa_model, order)
+            relation = self.sort_relations.get(order)
+            if relation:
+                query.outerjoin(field).order_by(desc(relation) if desc_ else relation)
+            else:
+                query = query.order_by(desc(field) if desc_ else field)
 
         self._rows = query.all()
 
@@ -63,7 +82,7 @@ class SQLAlchemyTableModel(QAbstractTableModel):
         return self._rows[row]
 
     def get_list_query(self):
-        return self._session.query(self.model)
+        return self._session.query(self.sa_model)
 
     def rowCount(self, parent):
         return len(self._rows)
@@ -75,6 +94,9 @@ class SQLAlchemyTableModel(QAbstractTableModel):
         return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
     def data(self, index, role):
+        if not index.isValid():
+            return QVariant()
+
         name, value = self._get_field(index)
         if role in (Qt.DisplayRole, Qt.EditRole):
             return self._display_field(index, name, value)
@@ -105,9 +127,22 @@ class SQLAlchemyTableModel(QAbstractTableModel):
             else:
                 return "%i" % self._rows[section].id
 
-# ~    #=====================================================#
-# ~    #INSERTING & REMOVING
-# ~    #=====================================================#
+    def sort(self, col, order):
+        """Sort table by given column number col"""
+        self.layoutAboutToBeChanged.emit()
+        self._update(order=self.fields[col][0], desc_=order == Qt.DescendingOrder)
+        self.layoutChanged.emit()
+
+    # INSERTING & REMOVING
+
+    def removeRows(self, row, numrows=1, index=QModelIndex()):
+        log.debug("Removing %i rows at row: %s", numrows, row)
+        self.beginRemoveRows(QModelIndex(), row, row + numrows - 1)
+        for i in range(row, row + numrows):
+            item = self._rows.pop(i)
+            self._session.delete(item)
+        self.endRemoveRows()
+        return True
 
 # ~    def insertRows(self, position, rows, parent=QtCore.QModelIndex()):
 # ~        self.beginInsertRows(parent, position, position + rows - 1)
@@ -133,10 +168,13 @@ class SQLAlchemyTableModel(QAbstractTableModel):
 
 class PatchlistTableModel(SQLAlchemyTableModel):
     fields = (('displayname', 'Name'), 'author', 'revision', 'created')
-    model = Patch
+    sa_model = Patch
     datetime_fmt = "%Y-%m-%d %H:%M:%S"
     resize_mode = {'displayname': QHeaderView.Stretch}
     list_order = 'displayname'
+    sort_relations = {
+        'author': Author.name
+    }
 
     def display_created(self, index, value):
         return value.strftime(self.datetime_fmt)
