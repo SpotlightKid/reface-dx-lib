@@ -26,13 +26,14 @@ setup(
     url="https://github.com/SpotlightKid/reface-dx-lib",
     packages=["refacedx"],
     install_requires=[
-        'python-qt5',
+        'PyQt5',
+        'python-rtmidi>=1.1.1',
         'sqlalchemy>=1.2.0',
-        'python-rtmidi>=1.1.1'
+        'sqlalchemy-filters'
     ],
     entry_points={
         "console_scripts": [
-            "reface-dx-lib = refacedx:main"
+            "reface-dx-lib = refacedx.app:main"
         ]
     },
     classifiers=[
