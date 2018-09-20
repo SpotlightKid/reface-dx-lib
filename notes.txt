@@ -8,8 +8,18 @@ Ideas
 * Auswahl MIDI in/output über dynmische drop-down menus
 * Wertung (Stars * - *****) und/oder Favorite-List für Patches
 * Patch-Import mit Auswahl von Tags für alle importierten Sounds
-* Auto-Tag-Zuweisung auf Grundlage von Patch und/oder Dateinamen
+* Auto-Tag-Zuweisung auf Grundlage von Patch und/oder Dateinamen (Regex?)
+* Zuweisung Modell/Hersteller auf Basis von Datei- oder Verzeichnisnamen (Regex?)
 * Filterung nach Patch / Dateinamen
 * Filterung nach Tags
 * Filterung nach Erstellungs/Importdatum
 * Filterung nach Autor
+
+* Tags zuweisen durch Keyboardshortcuts, z.B. F1 - F12
+* Rating zuweisen durch Keyboardshortcuts, z.B. 0 - 5
+
+* Externen Editor für Patch öffnen
+
+* Slots in Favoritenliste Numpadkeys zuweisen.
+
+* Request Patch: nach Empfang Variante des Import-Fenster anzeigen, zur Auswahl Name/Displayname, Tags, Autor usw.
