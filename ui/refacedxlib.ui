@@ -19,6 +19,82 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
+     <widget class="QFrame" name="midi_setup">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Sunken</enum>
+      </property>
+      <layout class="QHBoxLayout" name="midi_selectors">
+       <item>
+        <widget class="QLabel" name="midiin_label">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="midLineWidth">
+          <number>0</number>
+         </property>
+         <property name="text">
+          <string>MIDI Input:</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="midiin_cb">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>1</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumContentsLength">
+          <number>25</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="midiout_label">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>MIDI Output:</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="midiout_cb">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>1</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumContentsLength">
+          <number>25</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
      <widget class="QTabWidget" name="tabbox_patchlists">
       <property name="minimumSize">
        <size>
@@ -96,11 +172,6 @@
     <addaction name="separator"/>
     <addaction name="action_quit"/>
    </widget>
-   <widget class="QMenu" name="menu_MIDI">
-    <property name="title">
-     <string>&amp;MIDI</string>
-    </property>
-   </widget>
    <widget class="QMenu" name="menu_Patch">
     <property name="title">
      <string>&amp;Patch</string>
@@ -113,9 +184,7 @@
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_Patch"/>
-   <addaction name="menu_MIDI"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
   <widget class="QToolBar" name="toolBar">
    <property name="windowTitle">
     <string>toolBar</string>
@@ -129,6 +198,8 @@
    <addaction name="action_import"/>
    <addaction name="action_request"/>
    <addaction name="action_send"/>
+   <addaction name="separator"/>
+   <addaction name="action_midi"/>
   </widget>
   <action name="action_quit">
    <property name="icon">
@@ -232,6 +303,17 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="action_midi">
+   <property name="icon">
+    <iconset theme="audio-card"/>
+   </property>
+   <property name="text">
+    <string>MIDI Setup</string>
+   </property>
+   <property name="toolTip">
+    <string>Show MIDI input and ouput port selection</string>
    </property>
   </action>
  </widget>

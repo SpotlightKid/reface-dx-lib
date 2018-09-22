@@ -22,9 +22,10 @@ class MidiWorker(QObject):
 
     """
 
+    close = pyqtSignal()
     send_start = pyqtSignal()
     send_complete = pyqtSignal()
-    send_midi = pyqtSignal(bytes)
+    send_patch = pyqtSignal(bytes)
     scan_ports = pyqtSignal()
     set_output_port = pyqtSignal('PyQt_PyObject')
     set_input_port = pyqtSignal('PyQt_PyObject')
@@ -34,86 +35,138 @@ class MidiWorker(QObject):
     def __init__(self, config, *args, **kw):
         super().__init__(*args, **kw)
         self.config = QSettings()
+        self._midiin = None
+        self._midiin_name = None
+        self._midiout = None
+        self._midiout_name = None
         self.client_name = self.config.value('midi/client_name', 'Reface DX Lib')
+        self.close.connect(self._close)
         self.set_input_port.connect(self._set_input_port)
         self.set_output_port.connect(self._set_output_port)
         self.scan_ports.connect(self._scan_ports)
-        self.send_midi.connect(self._send_midi, type=Qt.QueuedConnection)
-        self.midiio = RefaceDX()
+        self.send_patch.connect(self._send_patch, type=Qt.QueuedConnection)
 
     @pyqtSlot()
     def initialize(self):
-        log.debug('Initializing')
-        self._set_input_port(self.config.value('midi/input_port', 'reface DX'))
-        self._set_output_port(self.config.value('midi/output_port', 'reface DX'))
-        self.input_ports_changed.emit(self._midiin_ports)
-        self.output_ports_changed.emit(self._midiout_ports)
+        log.debug('Initializing MidiWorker.')
+        self.midiio = RefaceDX()
+        self.set_input_port.emit(self.config.value('midi/input_port', 'reface DX'))
+        self.set_output_port.emit(self.config.value('midi/output_port', 'reface DX'))
+        self._scan_ports(init=True)
+
+    def _close(self):
+        try:
+            if self._midiin:
+                self._midiin.close_port()
+                self.midiio.midiin = self._midiin = None
+        except AttributeError:
+            pass
+
+        try:
+            if self._midiout:
+                self._midiout.close_port()
+                self.midiio.midiout = self._midiout = None
+        except AttributeError:
+            pass
+
+    def _filter_own_ports(self, port, suffix, prefix):
+        try:
+            client, name = port.split(':', 1)
+        except TypeError:
+            return False
+
+        return client.startswith(self.client_name + suffix) and name.startswith(prefix)
+
+    def get_input_ports(self):
+        return [port for port in (self._midiin.get_ports() if self._midiin else [])
+                if not self._filter_own_ports(port, ' Out', 'midi_out')]
+
+    def get_output_ports(self):
+        return [port for port in (self._midiout.get_ports() if self._midiout else [])
+                if not self._filter_own_ports(port, ' In', 'midi_in')]
 
     @pyqtSlot('PyQt_PyObject')
     def _set_input_port(self, port=None):
-        log.debug("_set_input_port")
-        if getattr(self, '_midiin', None):
+        log.debug("Trying to open input port %s...", port)
+        if self._midiin:
             self._midiin.close_port()
-            del self._midiin
 
         try:
-            self._midiin = MidiIn(get_api_from_environment(), name=self.client_name)
-            self._midiin_ports = self._midiin.get_ports()
+            self._midiin = MidiIn(get_api_from_environment(), name=self.client_name + ' In')
+            self._midiin_ports = self.get_input_ports()
+
             for i, name in enumerate(self._midiin_ports):
-                if (isinstance(port, int) and i == port) or port == name:
+                log.debug("Checking input port #%i %s", i, name)
+                if (isinstance(port, int) and port == i) or port == name:
                     self._midiin.open_port(i, name='midi_in')
                     self.config.setValue('midi/input_port', name)
+                    log.debug("Set MIDI input port to '%s'.", name)
                     break
             else:
                 self._midiin = self._midiin.open_virtual_port(name='midi_in')
+                name = "Virtual MIDI input"
+
+            self._midiin_name = name
         except Exception as exc:
             log.error("Could not open MIDI input port '%s': %s", port, exc)
-            self.midiin = None
+            self._midiin = self._midiin_name = None
 
         self.midiio.midiin = self._midiin
 
     @pyqtSlot('PyQt_PyObject')
     def _set_output_port(self, port=None):
-        log.debug("_set_output_port")
-        if getattr(self, '_midiout', None):
+        log.debug("Trying to open output port %s...", port)
+        if self._midiout:
             self._midiout.close_port()
-            del self._midiout
 
         try:
-            self._midiout = MidiOut(get_api_from_environment(), name=self.client_name)
-            self._midiout_ports = self._midiout.get_ports()
+            self._midiout = MidiOut(get_api_from_environment(), name=self.client_name + ' Out')
+            self._midiout_ports = self.get_output_ports()
+
             for i, name in enumerate(self._midiout_ports):
-                if (isinstance(port, int) and i == port) or port == name:
+                log.debug("Checking output port #%i %s", i, name)
+                if (isinstance(port, int) and port == i) or port == name:
                     self._midiout.open_port(i, name='midi_out')
                     self.config.setValue('midi/output_port', name)
+                    log.debug("Set MIDI output port to '%s'.", name)
                     break
             else:
                 self._midiout.open_virtual_port(name='midi_out')
+                name = "Virtual MIDI output"
+
+            self._midiout_name = name
         except Exception as exc:
             log.error("Could not open MIDI output port '%s': %s", port, exc)
-            self.midiout = None
+            self.midiout = self._midiout_name = None
 
         self.midiio.midiout = self._midiout
 
     @pyqtSlot(bytes)
-    def _send_midi(self, data):
-        log.debug("_send_midi")
+    def _send_patch(self, data):
         self.send_start.emit()
         self.midiio.send_patch(data)
         self.send_complete.emit()
 
     @pyqtSlot()
-    def _scan_ports(self):
-        log.debug("_scan_ports")
-        ports = self._midiin.get_ports() if self._midiin else []
-        if ports != self._midiin_ports:
-            self._midiin_ports = ports
-            self.input_ports_changed.emit(ports)
+    def _scan_ports(self, init=False):
+        log.debug("Scanning MIDI input and output ports...")
 
-        ports = self._midiout.get_ports() if self._midiout else []
-        if ports != self._midiout_ports:
-            log.debug("MIDI output port list changed.")
-            log.debug("Old: %s", self._midiout_ports)
-            log.debug("New: %s", ports)
-            self._midiout_ports = ports
-            self.output_ports_changed.emit(ports)
+        ports = self.get_input_ports()
+        if init or ports != self._midiin_ports:
+            if not init:
+                log.debug("MIDI input ports changed.")
+                log.debug("Old input port list: %r", self._midiin_ports)
+                log.debug("New input port list: %r", ports)
+                self._midiin_ports = ports
+
+            self.input_ports_changed.emit([(port, port == self._midiin_name) for port in ports])
+
+        ports = self.get_output_ports()
+        if init or ports != self._midiout_ports:
+            if not init:
+                log.debug("MIDI output ports changed.")
+                log.debug("Old output port list: %r", self._midiout_ports)
+                log.debug("New output port list: %r", ports)
+                self._midiout_ports = ports
+
+            self.output_ports_changed.emit([(port, port == self._midiout_name) for port in ports])

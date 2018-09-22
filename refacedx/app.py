@@ -9,7 +9,8 @@ from os.path import basename, dirname, join, splitext
 
 from PyQt5.QtCore import QSettings, QThread, QTimer, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication, QFileDialog, QMainWindow, QMenu, QMessageBox
+from PyQt5.QtWidgets import (QApplication, QComboBox, QFileDialog, QLabel, QMainWindow,
+                             QMessageBox)
 
 from .midithread import MidiWorker
 from .model import Author, Patch, Session, Tag, configure_session, create_test_data, initdb
@@ -26,15 +27,15 @@ class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
         super().__init__(*args, **kwargs)
         # Set up the user interface from Designer.
         self.setupUi(self)
+        self.midi_setup.hide()
+        self.action_midi.triggered.connect(self.toggle_midi_options)
         # Set the size and title
         self.setMinimumSize(800, 600)
         self.setWindowTitle("Reface DX Lib")
-        self.midiin_menu = QMenu(self.menu_MIDI)
-        self.midiin_menu.setTitle("&Input port")
-        self.menu_MIDI.addMenu(self.midiin_menu)
-        self.midiout_menu = QMenu(self.menu_MIDI)
-        self.midiout_menu.setTitle("&Output port")
-        self.menu_MIDI.addMenu(self.midiout_menu)
+
+    @pyqtSlot()
+    def toggle_midi_options(self):
+        self.midi_setup.setVisible(not self.midi_setup.isVisible())
 
     def set_patchtable_model(self, value):
         self._model = value
@@ -53,8 +54,8 @@ class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
 
 
 class RefaceDXLibApp(QApplication):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
+    def __init__(self, args=None):
+        super().__init__(args or sys.argv)
         self.setOrganizationName('chrisarndt.de')
         self.setOrganizationDomain('chrisarndt.de')
         self.setApplicationName('Reface DX Lib')
@@ -63,7 +64,7 @@ class RefaceDXLibApp(QApplication):
         self.config.setIniCodec('UTF-8')
         QIcon.setThemeSearchPaths([join(dirname(__file__), "icons")])
         QIcon.setThemeName(self.config.value('gui/icon_theme', "Faenza"))
-        self.debug = self.config.value('application/debug', False)
+        self.debug = True if '-v' in args[1:] else self.config.value('application/debug', False)
         logging.basicConfig(level=logging.DEBUG if self.debug else logging.INFO,
                             format='%(levelname)s - %(message)s')
 
@@ -72,7 +73,8 @@ class RefaceDXLibApp(QApplication):
         self.session = initdb(db_uri, debug=self.config.value('database/debug', False))
         self.patches = PatchlistTableModel(self.session)
         self.mainwin.set_patchtable_model(self.patches)
-
+        self.midiin_conn = None
+        self.midiout_conn = None
         self.setup_midi_thread()
 
         # signal connections
@@ -93,8 +95,8 @@ class RefaceDXLibApp(QApplication):
         self.midithread.started.connect(self.midiworker.initialize)
         self.midiworker.send_start.connect(partial(self.mainwin.set_send_action_enabled, False))
         self.midiworker.send_complete.connect(partial(self.mainwin.set_send_action_enabled, True))
-        self.midiworker.input_ports_changed.connect(self.set_midi_input_menu)
-        self.midiworker.output_ports_changed.connect(self.set_midi_output_menu)
+        self.midiworker.input_ports_changed.connect(self.build_midi_input_selector)
+        self.midiworker.output_ports_changed.connect(self.build_midi_output_selector)
 
         # Start thread
         self.midithread.start()
@@ -103,26 +105,67 @@ class RefaceDXLibApp(QApplication):
         self.timer.start(3000)
 
     @pyqtSlot('PyQt_PyObject')
-    def set_midi_input_menu(self, ports):
-        self.mainwin.midiin_menu.clear()
-        for port in ports:
-            func = partial(self.midiworker.set_input_port.emit, port)
-            self.mainwin.midiin_menu.addAction(port, func)
+    def build_midi_input_selector(self, ports):
+        log.debug("Building MIDI input selector...")
+        if self.midiin_conn:
+            self.mainwin.midiin_cb.currentIndexChanged.disconnect(self.midiin_conn)
+
+        self.mainwin.midiin_cb.setEnabled(False)
+        self.mainwin.midiin_cb.clear()
+        selected = -1
+
+        for i, (port, is_open) in enumerate(ports):
+            self.mainwin.midiin_cb.addItem(port, port)
+
+            if is_open:
+                selected = i
+
+        self.mainwin.midiin_cb.setCurrentIndex(selected)
+        self.midiin_conn = self.mainwin.midiin_cb.currentIndexChanged.connect(self.set_midiin_port)
+        self.mainwin.midiin_cb.setEnabled(True)
+        log.debug("MIDI input selector (re-)built.")
 
     @pyqtSlot('PyQt_PyObject')
-    def set_midi_output_menu(self, ports):
-        self.mainwin.midiout_menu.clear()
-        for port in ports:
-            func = partial(self.midiworker.set_output_port.emit, port)
-            self.mainwin.midiout_menu.addAction(port, func)
+    def build_midi_output_selector(self, ports):
+        log.debug("Building MIDI output selector...")
+        if self.midiout_conn:
+            self.mainwin.midiout_cb.currentIndexChanged.disconnect(self.midiout_conn)
+
+        self.mainwin.midiout_cb.setEnabled(False)
+        self.mainwin.midiout_cb.clear()
+        selected = -1
+
+        for i, (port, is_open) in enumerate(ports):
+            self.mainwin.midiout_cb.addItem(port, port)
+
+            if is_open:
+                selected = i
+
+        self.mainwin.midiout_cb.setCurrentIndex(selected)
+        self.midiout_conn = self.mainwin.midiout_cb.currentIndexChanged.connect(self.set_midiout_port)
+        self.mainwin.midiout_cb.setEnabled(True)
+        log.debug("MIDI output selector (re-)built.")
+
+    def set_midiin_port(self, index):
+        log.debug("MIDI input selector index changed: %r", index)
+        if index != -1:
+            port = self.mainwin.midiin_cb.itemData(index)
+            self.midiworker.set_input_port.emit(port)
+
+    def set_midiout_port(self, index):
+        log.debug("MIDI output selector index changed: %r", index)
+        if index != -1:
+            port = self.mainwin.midiout_cb.itemData(index)
+            self.midiworker.set_output_port.emit(port)
 
     # action handlers
     def quit(self):
-        self.midithread.exit()
+        self.midiworker.close.emit()
+        self.midithread.quit()
         self.mainwin.close()
 
     def receive_patch(self):
-        self.midiworker.scan_ports.emit()
+        pass
 
     def delete_patches(self):
         if self.mainwin.selection.hasSelection():
@@ -152,10 +195,10 @@ class RefaceDXLibApp(QApplication):
         if not self.config.value('native_dialogs', False):
             options |= QFileDialog.DontUseNativeDialog
 
-        files, dummy = QFileDialog.getOpenFileNames(self.mainwin, "Import SysEx patches",
-            self.config.value('paths/last_import_path', ''), "SysEx Files (*.syx);;All Files (*)",
-            options=options)
-        log.debug("Dummy: %r", dummy)
+        files, _ = QFileDialog.getOpenFileNames(self.mainwin, "Import SysEx patches",
+                                                self.config.value('paths/last_import_path', ''),
+                                                "SysEx Files (*.syx);;All Files (*)",
+                                                options=options)
 
         if files:
             self.config.setValue('paths/last_import_path', dirname(files[0]))
@@ -180,11 +223,12 @@ class RefaceDXLibApp(QApplication):
         if self.mainwin.selection.hasSelection():
             for row in self.mainwin.selection.selectedRows():
                 patch = self.patches.get_row(row)
-                self.midiworker.send_midi.emit(patch.data)
+                self.midiworker.send_patch.emit(patch.data)
+                log.debug("Sent patch: %s (%s)", patch.displayname, patch.name)
 
 
 def main(args=None):
-    app = RefaceDXLibApp(args if args is not None else sys.argv)
+    app = RefaceDXLibApp(sys.argv if args is None else args)
     return app.exec_()
 
 
