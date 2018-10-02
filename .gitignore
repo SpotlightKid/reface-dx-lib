@@ -1,5 +1,7 @@
 # Icon library, we add those we need manually
 refacedx/icons/*
+# auto-generated UI code
+refacedx/*_ui.py
 
 # Patch databases
 *.sqlite
