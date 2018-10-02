@@ -1,7 +1,9 @@
 PROJECT = refacedxlib
 PKG_DIR = refacedx
 UI_DIR = ui
-_PYUI_FILES = $(PROJECT)_ui.py
+_PYUI_FILES = $(PROJECT)_ui.py \
+	adddialog_ui.py \
+	importdialog_ui.py
 PYUI_FILES = $(patsubst %,$(PKG_DIR)/%,$(_PYUI_FILES))
 
 PYUIC ?= pyuic5

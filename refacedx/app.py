@@ -7,19 +7,29 @@ import sys
 from functools import partial
 from os.path import basename, dirname, join, splitext
 
-from PyQt5.QtCore import QSettings, QThread, QTimer, pyqtSignal, pyqtSlot
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import (QApplication, QComboBox, QFileDialog, QLabel, QMainWindow,
+from PyQt5.QtCore import QSettings, QThread, QTimer, Qt, pyqtSignal, pyqtSlot
+from PyQt5.QtGui import QColor, QIcon, QPalette
+from PyQt5.QtWidgets import (QApplication, QComboBox, QDialog, QFileDialog, QLabel, QMainWindow,
                              QMessageBox)
 
 from .midithread import MidiWorker
 from .model import Author, Patch, Session, Tag, configure_session, create_test_data, initdb
-from .refacedxlib_ui import Ui_MainWindow
 from .util import is_reface_dx_voice, get_patch_name
 from .viewmodel import PatchlistTableModel
 
+from .adddialog_ui import Ui_AddPatchDialog
+from .refacedxlib_ui import Ui_MainWindow
+from .style import DarkAppStyle
+
 
 log = logging.getLogger('refacedx')
+
+
+class AddPatchDialog(QDialog, Ui_AddPatchDialog):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set up the user interface from Designer.
+        self.setupUi(self)
 
 
 class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
@@ -85,6 +95,7 @@ class RefaceDXLibApp(QApplication):
         self.mainwin.action_request.triggered.connect(self.receive_patch)
         self.mainwin.action_delete.triggered.connect(self.delete_patches)
 
+        self.style = DarkAppStyle(self)
         self.mainwin.show()
 
     def setup_midi_thread(self):
