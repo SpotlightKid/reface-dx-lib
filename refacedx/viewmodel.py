@@ -32,7 +32,6 @@ class SQLAlchemyTableModel(QAbstractTableModel):
             mapper = inspect(self.sa_model)
             self.fields = mapper.column_attrs.keys()
 
-        log.debug("Fields: %r", self.fields)
         self.fields = tuple((f, f.capitalize()) if isinstance(f, str) else f
                             for f in self.fields or [])
         self._update()
@@ -136,7 +135,7 @@ class SQLAlchemyTableModel(QAbstractTableModel):
     # INSERTING & REMOVING
 
     def removeRows(self, pos, numrows=1, index=QModelIndex()):
-        log.debug("Removing %i rows at row: %s", numrows, pos)
+        log.debug("Removing %i row(s) at row %s.", numrows, pos)
         self.beginRemoveRows(QModelIndex(), pos, pos + numrows - 1)
         for i in range(pos, pos + numrows):
             item = self._rows.pop(i)
