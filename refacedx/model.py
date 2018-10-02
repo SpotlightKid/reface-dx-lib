@@ -134,6 +134,7 @@ class Patch(Base):
     name = Column(Unicode(10), nullable=False)
     displayname = Column(Unicode(50), nullable=False)
     description = Column(Unicode(150))
+    rating = Column(Integer)
     tags = relationship('Tag', secondary=patch_tag, backref='patches')
     manufacturer_id = Column(Integer, ForeignKey('manufacturer.id'))
     manufacturer = relationship("Manufacturer", backref=backref('patches', order_by=id))
