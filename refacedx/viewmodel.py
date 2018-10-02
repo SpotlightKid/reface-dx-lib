@@ -154,7 +154,8 @@ class SQLAlchemyTableModel(QAbstractTableModel):
 
 
 class PatchlistTableModel(SQLAlchemyTableModel):
-    fields = (('displayname', 'Name'), 'author', 'revision', 'created')
+    #fields = (('displayname', 'Name'), 'author', 'revision', 'created')
+    fields = (('displayname', 'Name'), 'author', 'created')
     sa_model = Patch
     datetime_fmt = "%Y-%m-%d %H:%M:%S"
     resize_mode = {'displayname': QHeaderView.Stretch}
