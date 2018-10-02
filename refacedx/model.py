@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  refacedx/model.py
+# refacedx/model.py
 #
 """SQLAlchemy data model for Yamaha Reface DX Patches."""
 
