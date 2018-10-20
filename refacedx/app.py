@@ -74,7 +74,7 @@ class RefaceDXLibApp(QApplication):
         QSettings.setDefaultFormat(QSettings.IniFormat)
         self.config = QSettings()
         self.config.setIniCodec('UTF-8')
-        QIcon.setThemeSearchPaths([join(dirname(__file__), "icons")])
+        QIcon.setFallbackSearchPaths([join(dirname(__file__), "icons")])
         QIcon.setThemeName(self.config.value('gui/icon_theme', "Faenza"))
         self.debug = True if '-v' in args[1:] else self.config.value('application/debug', False)
         logging.basicConfig(level=logging.DEBUG if self.debug else logging.INFO,

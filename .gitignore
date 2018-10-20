@@ -1,5 +1,5 @@
-# Icon library, we add those we need manually
-refacedx/icons/*
+# Icon library, we add those we need manually to refacedx/icons
+assets/icons/Faenza
 # auto-generated UI code
 refacedx/*_ui.py
 

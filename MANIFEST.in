@@ -1,0 +1,6 @@
+include LICENSE.txt
+include Makefile
+
+recursive-include refacedx/icons *.png *.svg
+
+graft ui
