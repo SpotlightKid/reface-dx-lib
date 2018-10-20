@@ -62,3 +62,9 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Geany editor project files
+*.geany
+
+# qtdeploy project files
+*-qtdeploy.proj
