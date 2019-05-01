@@ -36,7 +36,8 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "reface-dx-lib = refacedx.app:main"
+            "reface-dx-lib = refacedx.app:main",
+            "reface-request-patch = refacedx.tools.request_patch:main"
         ]
     },
     classifiers=[

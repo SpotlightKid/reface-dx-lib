@@ -11,7 +11,7 @@ from queue import Empty, Queue
 from rtmidi.midiconstants import PROGRAM_CHANGE, SYSTEM_EXCLUSIVE
 
 from .constants import *
-from .util import split_sysex
+from .util import is_reface_dx_bulk_dump, split_sysex
 
 
 log = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ class RefaceDX:
         try:
             for address in ADDRESSES_VOICE_BLOCK:
                 part = self.queue.get(timeout=self.timeout)
-                if is_bulk_dump(part, address=address):
+                if is_reface_dx_bulk_dump(part, address=address):
                     patch += bytearray(part)
         except Empty:
             raise TimeoutError
