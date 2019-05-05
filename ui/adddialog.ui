@@ -19,7 +19,10 @@
      <item row="0" column="0">
       <widget class="QLabel" name="name_lbl">
        <property name="text">
-        <string>Patch Name</string>
+        <string>&amp;Patch Name</string>
+       </property>
+       <property name="buddy">
+        <cstring>name_entry</cstring>
        </property>
       </widget>
      </item>
@@ -33,7 +36,10 @@
      <item row="1" column="0">
       <widget class="QLabel" name="shortname_lbl">
        <property name="text">
-        <string>Short name</string>
+        <string>&amp;Short name</string>
+       </property>
+       <property name="buddy">
+        <cstring>shortname_entry</cstring>
        </property>
       </widget>
      </item>
@@ -50,7 +56,10 @@
      <item row="2" column="0">
       <widget class="QLabel" name="author_lbl">
        <property name="text">
-        <string>Author</string>
+        <string>&amp;Author</string>
+       </property>
+       <property name="buddy">
+        <cstring>author_cb</cstring>
        </property>
       </widget>
      </item>
@@ -73,7 +82,10 @@
      <item row="3" column="0">
       <widget class="QLabel" name="created_lbl">
        <property name="text">
-        <string>Created on</string>
+        <string>&amp;Created on</string>
+       </property>
+       <property name="buddy">
+        <cstring>created_dt</cstring>
        </property>
       </widget>
      </item>
@@ -83,7 +95,10 @@
      <item row="4" column="0">
       <widget class="QLabel" name="device_lbl">
        <property name="text">
-        <string>Device</string>
+        <string>&amp;Device</string>
+       </property>
+       <property name="buddy">
+        <cstring>device_cb</cstring>
        </property>
       </widget>
      </item>
@@ -100,7 +115,10 @@
      <item row="5" column="0">
       <widget class="QLabel" name="manufacturer_lbl">
        <property name="text">
-        <string>Manufacturer</string>
+        <string>&amp;Manufacturer</string>
+       </property>
+       <property name="buddy">
+        <cstring>manufacturer_cb</cstring>
        </property>
       </widget>
      </item>
@@ -117,7 +135,10 @@
      <item row="7" column="0">
       <widget class="QLabel" name="tags_lbl">
        <property name="text">
-        <string>Tags</string>
+        <string>&amp;Tags</string>
+       </property>
+       <property name="buddy">
+        <cstring>tags_entry</cstring>
        </property>
       </widget>
      </item>
@@ -131,17 +152,27 @@
      <item row="8" column="0">
       <widget class="QLabel" name="description_lbl">
        <property name="text">
-        <string>Description</string>
+        <string>Descriptio&amp;n</string>
+       </property>
+       <property name="buddy">
+        <cstring>description_entry</cstring>
        </property>
       </widget>
      </item>
      <item row="8" column="1">
-      <widget class="QPlainTextEdit" name="plainTextEdit"/>
+      <widget class="QPlainTextEdit" name="description_entry">
+       <property name="tabChangesFocus">
+        <bool>true</bool>
+       </property>
+      </widget>
      </item>
      <item row="6" column="0">
       <widget class="QLabel" name="rating_lbl">
        <property name="text">
-        <string>Rating</string>
+        <string>&amp;Rating</string>
+       </property>
+       <property name="buddy">
+        <cstring>rating_cb</cstring>
        </property>
       </widget>
      </item>
