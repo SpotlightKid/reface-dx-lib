@@ -140,7 +140,7 @@ class Patch(Base):
     manufacturer = relationship("Manufacturer", backref=backref('patches', order_by=id))
     device_id = Column(Integer, ForeignKey('device.id'))
     device = relationship("Device", backref=backref('patches', order_by=id))
-    # patch data (e.g. Sysex or other MIDI data)
+    # patch data (e.g. SysEx or other MIDI data)
     data = Column(LargeBinary, nullable=False)
 
     # meta data
