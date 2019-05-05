@@ -11,13 +11,13 @@ from os.path import basename, dirname, join, splitext
 
 from PyQt5.QtCore import QSettings, QThread, QTimer, Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QColor, QIcon, QPalette
-from PyQt5.QtWidgets import (QApplication, QComboBox, QDialog, QFileDialog, QLabel, QMainWindow,
-                             QMessageBox)
+from PyQt5.QtWidgets import (QApplication, QCompleter, QComboBox, QDialog, QFileDialog, QLabel,
+                             QMainWindow, QMessageBox)
 
 from .midithread import MidiWorker
 from .model import Author, Patch, Session, Tag, configure_session, create_test_data, initdb
 from .util import is_reface_dx_voice, get_patch_name
-from .viewmodel import PatchlistTableModel
+from .viewmodel import AuthorListModel, DeviceListModel, ManufacturerListModel, PatchlistTableModel
 
 from .adddialog_ui import Ui_AddPatchDialog
 from .refacedxlib_ui import Ui_MainWindow
@@ -28,10 +28,32 @@ log = logging.getLogger('refacedx')
 
 
 class AddPatchDialog(QDialog, Ui_AddPatchDialog):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, app, *args, **kwargs):
+        super().__init__(app.mainwin, *args, **kwargs)
         # Set up the user interface from Designer.
         self.setupUi(self)
+
+        # auto-completion set up
+        self.name_completer = QCompleter(app.patches, self.name_entry)
+        self.name_completer.setCompletionColumn(0)
+        self.name_completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.name_entry.setCompleter(self.name_completer)
+
+        #self.author_completer = QCompleter(self.model, self.author_cb)
+        #self.author_completer.setCompletionColumn(1)
+        #self.author_completer.setCaseSensitivity(Qt.CaseInsensitive)
+        #self.author_cb.setCompleter(self.author_completer)
+        self.author_model = AuthorListModel(app.session)
+        self.author_cb.setModel(self.author_model)
+        self.author_cb.setModelColumn(2)
+
+        self.manufacturer_model = ManufacturerListModel(app.session)
+        self.manufacturer_cb.setModel(self.manufacturer_model)
+        self.manufacturer_cb.setModelColumn(3)
+
+        self.device_model = DeviceListModel(app.session)
+        self.device_cb.setModel(self.device_model)
+        self.device_cb.setModelColumn(3)
 
 
 class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
@@ -83,6 +105,7 @@ class RefaceDXLibApp(QApplication):
         self.mainwin = RefaceDXLibMainWin()
         db_uri = 'sqlite:///{}'.format(self.config.value('database/last_opened', 'refacedx.db'))
         self.session = initdb(db_uri, debug=self.config.value('database/debug', False))
+        #create_test_data(self.session)
         self.patches = PatchlistTableModel(self.session)
         self.mainwin.set_patchtable_model(self.patches)
         self.midiin_conn = None
@@ -96,6 +119,9 @@ class RefaceDXLibApp(QApplication):
         self.mainwin.action_send.triggered.connect(self.send_patches)
         self.mainwin.action_request.triggered.connect(self.receive_patch)
         self.mainwin.action_delete.triggered.connect(self.delete_patches)
+
+        # dialogs (initialized on-demand)
+        self.add_patch_dialog = None
 
         self.style = DarkAppStyle(self)
         self.mainwin.show()
@@ -178,7 +204,11 @@ class RefaceDXLibApp(QApplication):
         self.mainwin.close()
 
     def receive_patch(self):
-        pass
+        if self.add_patch_dialog is None:
+            self.add_patch_dialog = AddPatchDialog(self)
+
+        #self.add_patch_dialog.setModal(True)
+        self.add_patch_dialog.exec_()
 
     def delete_patches(self):
         if self.mainwin.selection.hasSelection():
