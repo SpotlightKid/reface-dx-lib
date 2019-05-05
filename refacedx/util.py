@@ -6,14 +6,15 @@ from .constants import (ADDRESSES_VOICE_BLOCK, REFACE_DX_MODEL_ID, SYSTEM_EXCLUS
                         YAMAHA_MANUFACTURER_ID)
 
 
-def split_sysex(data):
-    # XXX: quick hack to extract sysex messages from binary data
-    return [b'\xF0' + m.split(b'\xF7', 1)[0] + b'\xF7'
-            for m in data.split(b'\xF0')[1:]]
-
-
 def checksum(msg, offset=7, length=-2):
     return sum(msg[offset:length]) & 0x7f
+
+
+def ellip(s, length=50, suffix='[...]'):
+    if not s or len(s) <= length:
+        return s
+    else:
+        return s[:length - len(suffix)] + suffix
 
 
 def get_patch_name(data, encoding='ascii'):
@@ -47,3 +48,9 @@ def is_reface_dx_voice(data):
             return False
     else:
         return True
+
+
+def split_sysex(data):
+    # XXX: quick hack to extract sysex messages from binary data
+    return [b'\xF0' + m.split(b'\xF7', 1)[0] + b'\xF7'
+            for m in data.split(b'\xF0')[1:]]

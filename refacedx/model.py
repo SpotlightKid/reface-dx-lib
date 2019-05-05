@@ -5,23 +5,29 @@
 #
 """SQLAlchemy data model for Yamaha Reface DX Patches."""
 
-__all__ = [
+__all__ = (
     'Author',
+    'Device',
+    'HexByteString',
+    'Manufacturer',
     'Patch',
     'Tag',
     'configure_session',
-    'create_test_data',
+    'get_or_create',
     'initdb',
-]
+)
 
 import datetime
 import logging
 
-from sqlalchemy import (
-    Boolean, Column, DateTime, ForeignKey, Integer, LargeBinary, Sequence, String, Table,
-    TypeDecorator, Unicode, create_engine)
+from sqlalchemy import (Column, DateTime, ForeignKey, Integer, LargeBinary, Sequence, String,
+                        Table, TypeDecorator, Unicode, create_engine)
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import backref, relationship, scoped_session, sessionmaker
+from sqlalchemy.orm import backref, relationship, sessionmaker
+from sqlalchemy.orm.exc import NoResultFound
+
+from .util import ellip
 
 
 log = logging.getLogger(__name__)
@@ -30,52 +36,10 @@ Session = sessionmaker(autocommit=True)
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
-def ellip(s, length=50, suffix='[...]'):
-    if not s or len(s) <= length:
-        return s
-    else:
-        return s[:length-len(suffix)] + suffix
-
-
 def configure_session(db_uri, sessionmaker=Session, debug=False):
     engine = create_engine(db_uri, echo=debug)
     sessionmaker.configure(bind=engine)
     return sessionmaker()
-
-
-def create_test_data(session):
-    from functools import partial
-
-    with session.begin():
-        t1 = Tag(name='lead', description='Lead sound')
-        t2 = Tag(name='bass', description='Bass sound')
-        t3 = Tag(name='pad', description='Pad sound')
-        t4 = Tag(name='bell', description='Bell type sound')
-        session.add(t1)
-        session.add(t2)
-        session.add(t3)
-        session.add(t4)
-
-        a1 = Author(name='chris', displayname='Christopher Arndt')
-        session.add(a1)
-
-        m1 = Manufacturer(name='yamaha', displayname='Yamaha', sysex_id=b'\0\45\x43')
-        session.add(m1)
-
-        d1 = Device(name='refacedx', displayname='Reface DX', sysex_id=b'\x7F\x1C\x05')
-        session.add(d1)
-
-        p = partial(Patch, author=a1, manufacturer=m1, device=d1)
-
-        p1 = p(name='PizzaToGo', displayname='PizzaToGo', data=b'\xF0\x43\0\xF7', tags=[t1, t2],
-               description="A soft pizzicato sound ideal for percussive comping parts")
-        p2 = p(name='Liquid Lead', displayname='Liquid Lead', data=b'\xF0\x43\0\xF7', tags=[t1])
-        p3 = p(name='SunrizPad', displayname='SunrizPad', data=b'\xF0\x43\0\xF7', tags=[t3])
-        p4 = p(name='Bell Pad', displayname='Bell Pad', data=b'\xF0\x43\0\xF7', tags=[t3])
-        session.add(p1)
-        session.add(p2)
-        session.add(p3)
-        session.add(p4)
 
 
 def get_or_create(session, model, create_method='', create_method_kwargs=None, **kwargs):
@@ -120,7 +84,9 @@ class HexByteString(TypeDecorator):
         return bytes.fromhex(value) if value else None
 
 
-patch_tag = Table('patch_tag', Base.metadata,
+patch_tag = Table(
+    'patch_tag',
+    Base.metadata,
     Column('patch_id', Integer, ForeignKey('patch.id')),
     Column('tag_id', Integer, ForeignKey('tag.id'))
 )
@@ -140,7 +106,7 @@ class Patch(Base):
     manufacturer = relationship("Manufacturer", backref=backref('patches', order_by=id))
     device_id = Column(Integer, ForeignKey('device.id'))
     device = relationship("Device", backref=backref('patches', order_by=id))
-    # patch data (e.g. Sysex or other MIDI data)
+    # patch data (e.g. SysEx or other MIDI data)
     data = Column(LargeBinary, nullable=False)
 
     # meta data
@@ -229,9 +195,44 @@ class Tag(Base):
 
 
 if __name__ == '__main__':
+    from functools import partial
+
+    def create_test_data(session):
+
+        with session.begin():
+            t1 = Tag(name='lead', description='Lead sound')
+            t2 = Tag(name='bass', description='Bass sound')
+            t3 = Tag(name='pad', description='Pad sound')
+            t4 = Tag(name='bell', description='Bell type sound')
+            session.add(t1)
+            session.add(t2)
+            session.add(t3)
+            session.add(t4)
+
+            a1 = Author(name='chris', displayname='Christopher Arndt')
+            session.add(a1)
+
+            m1 = Manufacturer(name='yamaha', displayname='Yamaha', sysex_id=b'\0\45\x43')
+            session.add(m1)
+
+            d1 = Device(name='refacedx', displayname='Reface DX', sysex_id=b'\x7F\x1C\x05')
+            session.add(d1)
+
+            p = partial(Patch, author=a1, manufacturer=m1, device=d1)
+
+            p1 = p(name='PizzaToGo', displayname='PizzaToGo', data=b'\xF0\x43\0\xF7', tags=[t1, t2],
+                   description="A soft pizzicato sound ideal for percussive comping parts")
+            p2 = p(name='Liquid Lead', displayname='Liquid Lead', data=b'\xF0\x43\0\xF7', tags=[t1])
+            p3 = p(name='SunrizPad', displayname='SunrizPad', data=b'\xF0\x43\0\xF7', tags=[t3])
+            p4 = p(name='Bell Pad', displayname='Bell Pad', data=b'\xF0\x43\0\xF7', tags=[t3])
+            session.add(p1)
+            session.add(p2)
+            session.add(p3)
+            session.add(p4)
+
     config = {
         'db_uri': 'sqlite:///data.sqlite',
-        #'debug': True,
+        # 'debug': True,
         'debug': False,
     }
     session = initdb(config['db_uri'], config['debug'])
@@ -240,6 +241,6 @@ if __name__ == '__main__':
     with session.begin():
         print(session.query(Tag).all())
         print(session.query(Author).all())
-        for patch in  session.query(Patch).all():
+        for patch in session.query(Patch).all():
             print(patch)
             print("Tags:", ", ".join(tag.name for tag in patch.tags))

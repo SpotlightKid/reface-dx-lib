@@ -4,13 +4,12 @@
 
 import logging
 
-from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex, QVariant
-from PyQt5.QtWidgets import QHeaderView, QAbstractItemView
+from PyQt5.QtWidgets import QHeaderView
 
 from sqlalchemy import desc as sa_desc, inspect
 
-from .model import Author, Patch
+from .model import Author, Device, Manufacturer, Patch
 
 
 log = logging.getLogger(__name__)
@@ -45,6 +44,7 @@ class SQLAlchemyTableModel(QAbstractTableModel):
 
     def _update(self, order=None, desc=False):
         query = self.get_list_query()
+
         if not order and self.list_order:
             if isinstance(self.list_order, str) and self.list_order.endswith('-'):
                 desc = True
@@ -55,6 +55,7 @@ class SQLAlchemyTableModel(QAbstractTableModel):
         if order:
             field = getattr(self.sa_model, order)
             relation = self.sort_relations.get(order)
+
             if relation:
                 query.outerjoin(field).order_by(sa_desc(relation) if desc else relation)
             else:
@@ -154,8 +155,7 @@ class SQLAlchemyTableModel(QAbstractTableModel):
 
 
 class PatchlistTableModel(SQLAlchemyTableModel):
-    #fields = (('displayname', 'Name'), 'author', 'revision', 'created')
-    fields = (('displayname', 'Name'), 'author', 'created')
+    fields = (('displayname', 'Display Name'), 'name', 'author', 'created')
     sa_model = Patch
     datetime_fmt = "%Y-%m-%d %H:%M:%S"
     resize_mode = {'displayname': QHeaderView.Stretch}
@@ -172,3 +172,22 @@ class PatchlistTableModel(SQLAlchemyTableModel):
 
     def tooltip_displayname(self, index, value):
         return self._rows[index.row()].name
+
+
+class NamedItemsListModel(SQLAlchemyTableModel):
+    list_order = 'displayname'
+
+    def display_displayname(self, index, value):
+        return value if value is not None else self._rows[index.row()].name
+
+
+class AuthorListModel(NamedItemsListModel):
+    sa_model = Author
+
+
+class ManufacturerListModel(NamedItemsListModel):
+    sa_model = Manufacturer
+
+
+class DeviceListModel(NamedItemsListModel):
+    sa_model = Device
