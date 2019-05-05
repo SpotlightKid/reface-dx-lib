@@ -74,7 +74,7 @@ class MidiWorker(QObject):
     def _filter_own_ports(self, port, suffix, prefix):
         try:
             client, name = port.split(':', 1)
-        except TypeError:
+        except (ValueError, TypeError):
             return False
 
         return client.startswith(self.client_name + suffix) and name.startswith(prefix)
