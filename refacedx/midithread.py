@@ -4,7 +4,6 @@
 # refacedx/midithread.py
 
 import logging
-import time
 
 from PyQt5.QtCore import QSettings, QObject, Qt, pyqtSignal, pyqtSlot
 
@@ -23,7 +22,6 @@ class MidiWorker(QObject):
     This will be run in a QThread when the application starts.
 
     """
-
     close = pyqtSignal()
     send_start = pyqtSignal()
     send_complete = pyqtSignal()

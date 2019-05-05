@@ -9,13 +9,13 @@ import sys
 from functools import partial
 from os.path import basename, dirname, join, splitext
 
-from PyQt5.QtCore import QSettings, QThread, QTimer, Qt, pyqtSignal, pyqtSlot
-from PyQt5.QtGui import QColor, QIcon, QPalette
-from PyQt5.QtWidgets import (QApplication, QCompleter, QComboBox, QDialog, QFileDialog, QLabel,
-                             QMainWindow, QMessageBox)
+from PyQt5.QtCore import QSettings, QThread, QTimer, Qt, pyqtSlot
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import (QApplication, QCompleter, QDialog, QFileDialog, QMainWindow,
+                             QMessageBox)
 
 from .midithread import MidiWorker
-from .model import Author, Patch, Session, Tag, configure_session, create_test_data, initdb
+from .model import Patch, initdb
 from .util import is_reface_dx_voice, get_patch_name
 from .viewmodel import AuthorListModel, DeviceListModel, ManufacturerListModel, PatchlistTableModel
 
@@ -39,10 +39,11 @@ class AddPatchDialog(QDialog, Ui_AddPatchDialog):
         self.name_completer.setCaseSensitivity(Qt.CaseInsensitive)
         self.name_entry.setCompleter(self.name_completer)
 
-        #self.author_completer = QCompleter(self.model, self.author_cb)
-        #self.author_completer.setCompletionColumn(1)
-        #self.author_completer.setCaseSensitivity(Qt.CaseInsensitive)
-        #self.author_cb.setCompleter(self.author_completer)
+        self.shortname_completer = QCompleter(app.patches, self.shortname_entry)
+        self.shortname_completer.setCompletionColumn(1)
+        self.shortname_completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.shortname_entry.setCompleter(self.shortname_completer)
+
         self.author_model = AuthorListModel(app.session)
         self.author_cb.setModel(self.author_model)
         self.author_cb.setModelColumn(2)
@@ -105,7 +106,6 @@ class RefaceDXLibApp(QApplication):
         self.mainwin = RefaceDXLibMainWin()
         db_uri = 'sqlite:///{}'.format(self.config.value('database/last_opened', 'refacedx.db'))
         self.session = initdb(db_uri, debug=self.config.value('database/debug', False))
-        #create_test_data(self.session)
         self.patches = PatchlistTableModel(self.session)
         self.mainwin.set_patchtable_model(self.patches)
         self.midiin_conn = None
@@ -146,43 +146,47 @@ class RefaceDXLibApp(QApplication):
     @pyqtSlot('PyQt_PyObject')
     def build_midi_input_selector(self, ports):
         log.debug("Building MIDI input selector...")
-        if self.midiin_conn:
-            self.mainwin.midiin_cb.currentIndexChanged.disconnect(self.midiin_conn)
+        cb = self.mainwin.midiin_cb
 
-        self.mainwin.midiin_cb.setEnabled(False)
-        self.mainwin.midiin_cb.clear()
+        if self.midiin_conn:
+            cb.currentIndexChanged.disconnect(self.midiin_conn)
+
+        cb.setEnabled(False)
+        cb.clear()
         selected = -1
 
         for i, (port, is_open) in enumerate(ports):
-            self.mainwin.midiin_cb.addItem(port, port)
+            cb.addItem(port, port)
 
             if is_open:
                 selected = i
 
-        self.mainwin.midiin_cb.setCurrentIndex(selected)
-        self.midiin_conn = self.mainwin.midiin_cb.currentIndexChanged.connect(self.set_midiin_port)
-        self.mainwin.midiin_cb.setEnabled(True)
+        cb.setCurrentIndex(selected)
+        self.midiin_conn = cb.currentIndexChanged.connect(self.set_midiin_port)
+        cb.setEnabled(True)
         log.debug("MIDI input selector (re-)built.")
 
     @pyqtSlot('PyQt_PyObject')
     def build_midi_output_selector(self, ports):
         log.debug("Building MIDI output selector...")
-        if self.midiout_conn:
-            self.mainwin.midiout_cb.currentIndexChanged.disconnect(self.midiout_conn)
+        cb = self.mainwin.midiout_cb
 
-        self.mainwin.midiout_cb.setEnabled(False)
-        self.mainwin.midiout_cb.clear()
+        if self.midiout_conn:
+            cb.currentIndexChanged.disconnect(self.midiout_conn)
+
+        cb.setEnabled(False)
+        cb.clear()
         selected = -1
 
         for i, (port, is_open) in enumerate(ports):
-            self.mainwin.midiout_cb.addItem(port, port)
+            cb.addItem(port, port)
 
             if is_open:
                 selected = i
 
-        self.mainwin.midiout_cb.setCurrentIndex(selected)
-        self.midiout_conn = self.mainwin.midiout_cb.currentIndexChanged.connect(self.set_midiout_port)
-        self.mainwin.midiout_cb.setEnabled(True)
+        cb.setCurrentIndex(selected)
+        self.midiout_conn = cb.currentIndexChanged.connect(self.set_midiout_port)
+        cb.setEnabled(True)
         log.debug("MIDI output selector (re-)built.")
 
     def set_midiin_port(self, index):
@@ -207,7 +211,6 @@ class RefaceDXLibApp(QApplication):
         if self.add_patch_dialog is None:
             self.add_patch_dialog = AddPatchDialog(self)
 
-        #self.add_patch_dialog.setModal(True)
         self.add_patch_dialog.exec_()
 
     def delete_patches(self):
@@ -222,9 +225,9 @@ class RefaceDXLibApp(QApplication):
                 msg_box.setText("Delete {} patches?".format(len(rows)))
                 msg_box.setDetailedText('\n'.join(patches))
 
-            msg_box.setInformativeText("Patches can only be restored by re-importing them.");
-            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel);
-            msg_box.setDefaultButton(QMessageBox.Cancel);
+            msg_box.setInformativeText("Patches can only be restored by re-importing them.")
+            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+            msg_box.setDefaultButton(QMessageBox.Cancel)
             msg_box.setIcon(QMessageBox.Warning)
 
             if msg_box.exec_() == QMessageBox.Yes:

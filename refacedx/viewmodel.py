@@ -4,9 +4,8 @@
 
 import logging
 
-from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex, QVariant
-from PyQt5.QtWidgets import QHeaderView, QAbstractItemView
+from PyQt5.QtWidgets import QHeaderView
 
 from sqlalchemy import desc as sa_desc, inspect
 
@@ -156,8 +155,7 @@ class SQLAlchemyTableModel(QAbstractTableModel):
 
 
 class PatchlistTableModel(SQLAlchemyTableModel):
-    #fields = (('displayname', 'Name'), 'author', 'revision', 'created')
-    fields = (('displayname', 'Name'), 'author', 'created')
+    fields = (('displayname', 'Display Name'), 'name', 'author', 'created')
     sa_model = Patch
     datetime_fmt = "%Y-%m-%d %H:%M:%S"
     resize_mode = {'displayname': QHeaderView.Stretch}
@@ -176,20 +174,20 @@ class PatchlistTableModel(SQLAlchemyTableModel):
         return self._rows[index.row()].name
 
 
-class NamedListModel(SQLAlchemyTableModel):
+class NamedItemsListModel(SQLAlchemyTableModel):
     list_order = 'displayname'
 
     def display_displayname(self, index, value):
         return value if value is not None else self._rows[index.row()].name
 
 
-class AuthorListModel(NamedListModel):
+class AuthorListModel(NamedItemsListModel):
     sa_model = Author
 
 
-class ManufacturerListModel(NamedListModel):
+class ManufacturerListModel(NamedItemsListModel):
     sa_model = Manufacturer
 
 
-class DeviceListModel(NamedListModel):
+class DeviceListModel(NamedItemsListModel):
     sa_model = Device

@@ -105,7 +105,7 @@ def main(args=None):
             try:
                 if '-' in patchspec:
                     lo, hi = [int(i) for i in patchspec.split('-', 1)]
-                    patches.update(range(lo, hi+1))
+                    patches.update(range(lo, hi + 1))
                 else:
                     patches.add(int(patchspec))
             except (TypeError, ValueError):

@@ -10,7 +10,7 @@ from queue import Empty, Queue
 
 from rtmidi.midiconstants import PROGRAM_CHANGE, SYSTEM_EXCLUSIVE
 
-from .constants import *
+from .constants import ADDRESS_HEADER, ADDRESSES_VOICE_BLOCK, DUMP_REQUEST
 from .util import is_reface_dx_bulk_dump, split_sysex
 
 
@@ -87,7 +87,7 @@ class RefaceDX:
     def send_patchfile(self, *names):
         path = join(*names)
         with open(path, 'rb') as syx:
-            self.send_patch(sys.read())
+            self.send_patch(syx.read())
 
     def send_program_change(self, program, channel=None):
         if channel is None:
