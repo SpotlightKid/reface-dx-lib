@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import QHeaderView, QAbstractItemView
 
 from sqlalchemy import desc as sa_desc, inspect
 
-from .model import Author, Patch
+from .model import Author, Device, Manufacturer, Patch
 
 
 log = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ class SQLAlchemyTableModel(QAbstractTableModel):
 
     def _update(self, order=None, desc=False):
         query = self.get_list_query()
+
         if not order and self.list_order:
             if isinstance(self.list_order, str) and self.list_order.endswith('-'):
                 desc = True
@@ -55,6 +56,7 @@ class SQLAlchemyTableModel(QAbstractTableModel):
         if order:
             field = getattr(self.sa_model, order)
             relation = self.sort_relations.get(order)
+
             if relation:
                 query.outerjoin(field).order_by(sa_desc(relation) if desc else relation)
             else:
@@ -172,3 +174,22 @@ class PatchlistTableModel(SQLAlchemyTableModel):
 
     def tooltip_displayname(self, index, value):
         return self._rows[index.row()].name
+
+
+class NamedListModel(SQLAlchemyTableModel):
+    list_order = 'displayname'
+
+    def display_displayname(self, index, value):
+        return value if value is not None else self._rows[index.row()].name
+
+
+class AuthorListModel(NamedListModel):
+    sa_model = Author
+
+
+class ManufacturerListModel(NamedListModel):
+    sa_model = Manufacturer
+
+
+class DeviceListModel(NamedListModel):
+    sa_model = Device
