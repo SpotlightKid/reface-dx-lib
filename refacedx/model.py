@@ -42,15 +42,16 @@ def configure_session(db_uri, sessionmaker=Session, debug=False):
     return sessionmaker()
 
 
-def get_or_create(session, model, create_method='', create_method_kwargs=None, **kwargs):
+def get_or_create(session, model, create_method=None, create_kwargs=None, **kwargs):
     try:
         return session.query(model).filter_by(**kwargs).one(), True
     except NoResultFound:
-        kwargs.update(create_method_kwargs or {})
+        kwargs.update(create_kwargs or {})
 
         try:
             with session.begin_nested():
-                created = getattr(model, create_method, model)(**kwargs)
+                constructor = getattr(model, create_method, model) if create_method else model
+                created = constructor(**kwargs)
                 session.add(created)
             return created, False
         except IntegrityError:
@@ -82,6 +83,22 @@ class HexByteString(TypeDecorator):
 
     def process_result_value(self, value, dialect):
         return bytes.fromhex(value) if value else None
+
+
+class Tag(Base):
+    """Definition of question tag table."""
+
+    __tablename__ = 'tag'
+    id = Column(Integer, Sequence('tag_id_seq'), primary_key=True)
+    name = Column(Unicode(50), nullable=False, unique=True)
+    description = Column(Unicode(250))
+
+    def __repr__(self):
+        return "<Tag(%r (#%i), %r)>" % (
+            self.name, self.id, ellip(self.description))
+
+    def __unicode__(self):
+        return self.name
 
 
 patch_tag = Table(
@@ -126,6 +143,12 @@ class Patch(Base):
 
     def __unicode__(self):
         return self.displayname
+
+    def update_tags(self, session, tags):
+        self.tags = []
+        for tagname in tags:
+            tag, _ = get_or_create(session, Tag, name=tagname)
+            self.tags.append(tag)
 
 
 class Manufacturer(Base):
@@ -173,22 +196,6 @@ class Author(Base):
     def __repr__(self):
         return "<Author(%r (#%i), %r)>" % (
             self.name, self.id, self.displayname)
-
-    def __unicode__(self):
-        return self.name
-
-
-class Tag(Base):
-    """Definition of question tag table."""
-
-    __tablename__ = 'tag'
-    id = Column(Integer, Sequence('tag_id_seq'), primary_key=True)
-    name = Column(Unicode(50), nullable=False, unique=True)
-    description = Column(Unicode(250))
-
-    def __repr__(self):
-        return "<Tag(%r (#%i), %r)>" % (
-            self.name, self.id, ellip(self.description))
 
     def __unicode__(self):
         return self.name

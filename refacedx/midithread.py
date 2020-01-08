@@ -7,7 +7,7 @@ import logging
 
 from PyQt5.QtCore import QSettings, QObject, Qt, pyqtSignal, pyqtSlot
 
-from .midiio import RefaceDX
+from .midiio import RefaceDX, TimeoutError
 
 from rtmidi import MidiIn, MidiOut
 from rtmidi.midiutil import get_api_from_environment
@@ -23,9 +23,13 @@ class MidiWorker(QObject):
 
     """
     close = pyqtSignal()
-    send_start = pyqtSignal()
-    send_complete = pyqtSignal()
     send_patch = pyqtSignal(bytes)
+    send_patch_start = pyqtSignal()
+    send_patch_complete = pyqtSignal()
+    request_patch = pyqtSignal('PyQt_PyObject')
+    recv_patch_start = pyqtSignal()
+    recv_patch_complete = pyqtSignal(bytearray)
+    recv_patch_failed = pyqtSignal(str)
     scan_ports = pyqtSignal()
     set_output_port = pyqtSignal('PyQt_PyObject')
     set_input_port = pyqtSignal('PyQt_PyObject')
@@ -40,16 +44,19 @@ class MidiWorker(QObject):
         self._midiout = None
         self._midiout_name = None
         self.client_name = self.config.value('midi/client_name', 'Reface DX Lib')
+        self.device = self.config.value('midi/sysex_device', 0)
+        self.channel = self.config.value('midi/channel', 0)
         self.close.connect(self._close)
         self.set_input_port.connect(self._set_input_port)
         self.set_output_port.connect(self._set_output_port)
         self.scan_ports.connect(self._scan_ports)
         self.send_patch.connect(self._send_patch, type=Qt.QueuedConnection)
+        self.request_patch.connect(self._request_patch, type=Qt.QueuedConnection)
 
     @pyqtSlot()
     def initialize(self):
         log.debug('Initializing MidiWorker.')
-        self.midiio = RefaceDX()
+        self.midiio = RefaceDX(channel=self.channel)
         self.set_input_port.emit(self.config.value('midi/input_port', 'reface DX'))
         self.set_output_port.emit(self.config.value('midi/output_port', 'reface DX'))
         self._scan_ports(init=True)
@@ -141,11 +148,30 @@ class MidiWorker(QObject):
 
         self.midiio.midiout = self._midiout
 
+    @pyqtSlot()
+    @pyqtSlot(int)
+    def _request_patch(self, program=None):
+        if program is not None:
+            log.debug("Sending program change %d (ch=%d).", program, self.channel)
+            self.midiio.send_program_change(program, self.channel)
+
+        self.recv_patch_start.emit()
+        try:
+            log.debug("Requesting current patch.")
+            patch = self.midiio.patch_request(self.device)
+        except TimeoutError as exc:
+            log.error("Patch request timed out.")
+            self.recv_patch_failed.emit(str(exc))
+        else:
+            log.debug("Patch data received.")
+            self.recv_patch_complete.emit(patch)
+
     @pyqtSlot(bytes)
     def _send_patch(self, data):
-        self.send_start.emit()
+        self.send_patch_start.emit()
+        log.debug("Sending patch data.")
         self.midiio.send_patch(data)
-        self.send_complete.emit()
+        self.send_patch_complete.emit()
 
     @pyqtSlot()
     def _scan_ports(self, init=False):
