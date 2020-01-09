@@ -1,0 +1,23 @@
+[Icon Theme]
+Name=tango
+Comment=Original tango icons
+Inherits=default
+Directories=16x16,22x22,32x32,48x48,scalable
+
+[16x16]
+Size=16
+
+[24x24]
+Size=24
+
+[32x32]
+Size=32
+
+[48x48]
+Size=48
+
+[scalable]
+MinSize=16
+MaxSize=256
+Context=Stock
+Type=Scalable

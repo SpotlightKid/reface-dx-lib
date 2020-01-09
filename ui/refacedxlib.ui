@@ -187,7 +187,7 @@
    <addaction name="menu_File"/>
    <addaction name="menu_Patch"/>
   </widget>
-  <widget class="QToolBar" name="toolBar">
+  <widget class="QToolBar" name="toolbar">
    <property name="windowTitle">
     <string>toolBar</string>
    </property>
@@ -203,6 +203,7 @@
    <addaction name="separator"/>
    <addaction name="action_midi"/>
   </widget>
+  <widget class="QStatusBar" name="statusbar"/>
   <action name="action_quit">
    <property name="icon">
     <iconset theme="application-exit">

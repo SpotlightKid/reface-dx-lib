@@ -15,6 +15,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (QApplication, QComboBox, QCompleter, QDialog, QFileDialog,
                              QMainWindow, QMessageBox)
 
+from . import icons_rcc
 from .midithread import MidiWorker
 from .model import Author, Device, Manufacturer, Patch, initdb, get_or_create
 from .util import is_reface_dx_voice, get_fullname, get_patch_name, set_patch_name
@@ -146,8 +147,7 @@ class RefaceDXLibApp(QApplication):
         QSettings.setDefaultFormat(QSettings.IniFormat)
         self.config = QSettings()
         self.config.setIniCodec('UTF-8')
-        QIcon.setFallbackSearchPaths([join(dirname(__file__), "icons")])
-        QIcon.setThemeName(self.config.value('gui/icon_theme', "Faenza"))
+        QIcon.setThemeName(self.config.value('gui/icon_theme', "tango"))
         self.debug = True if '-v' in args[1:] else self.config.value('application/debug', False)
         logging.basicConfig(level=logging.DEBUG if self.debug else logging.INFO,
                             format='%(levelname)s - %(message)s')
