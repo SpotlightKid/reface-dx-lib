@@ -49,19 +49,14 @@ class AddPatchDialog(QDialog, Ui_AddPatchDialog):
         self.author_model = AuthorListModel(app.session)
         self.author_cb.setModel(self.author_model)
         self.author_cb.setModelColumn(2)
-        self.author_cb.setInsertPolicy(QComboBox.NoInsert)
 
         self.manufacturer_model = ManufacturerListModel(app.session)
         self.manufacturer_cb.setModel(self.manufacturer_model)
         self.manufacturer_cb.setModelColumn(3)
-        self.manufacturer_cb.setInsertPolicy(QComboBox.NoInsert)
 
         self.device_model = DeviceListModel(app.session)
         self.device_cb.setModel(self.device_model)
         self.device_cb.setModelColumn(3)
-        self.device_cb.setInsertPolicy(QComboBox.NoInsert)
-
-        self.description_entry.setPlaceholderText('Write patch description here...')
 
         self._last_author = None
 
@@ -170,6 +165,7 @@ class RefaceDXLibApp(QApplication):
         self.aboutToQuit.connect(self.quit)
         self.mainwin.action_quit.triggered.connect(self.quit)
         self.mainwin.action_import.triggered.connect(self.import_patches)
+        self.mainwin.action_export.triggered.connect(self.export_patches)
         self.mainwin.action_send.triggered.connect(self.send_patches)
         self.mainwin.action_request.triggered.connect(self.request_patch)
         self.mainwin.action_delete.triggered.connect(self.delete_patches)
@@ -392,6 +388,34 @@ class RefaceDXLibApp(QApplication):
             # TODO: check if any patches were actually added
             self.patches._update()
             self.patches.layoutChanged.emit()
+
+    def export_patches(self):
+        if self.mainwin.selection.hasSelection():
+            options = QFileDialog.Options()
+
+            if not self.config.value('native_dialogs', False):
+                options |= (QFileDialog.DontUseNativeDialog | QFileDialog.ShowDirsOnly |
+                            QFileDialog.DontResolveSymlinks)
+
+            dir_ = QFileDialog.getExistingDirectory(
+                self.mainwin,
+                "Export SysEx patches",
+                self.config.value('paths/last_export_path', ''),
+                options=options)
+
+            if dir_:
+                self.config.setValue('paths/last_export_path', dir_)
+
+                for row in self.mainwin.selection.selectedRows():
+                    patch = self.patches.get_row(row)
+
+                    try:
+                        filename = patch.displayname.replace(' ', '_') + '.syx'
+                        with open(join(dir_, filename), 'wb') as syx:
+                            syx.write(patch.data)
+                    except OSError as exc:
+                        log.error("Could not write SysEx file at '%s': %s", filename, exc)
+
 
     def send_patches(self):
         if self.mainwin.selection.hasSelection():
