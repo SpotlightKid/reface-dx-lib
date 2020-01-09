@@ -120,7 +120,16 @@ class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
         self._model.adapt_view(self.table_patches)
         self.selection = self.table_patches.selectionModel()
         self.selection.selectionChanged.connect(self.set_send_action_enabled)
+        self.selection.selectionChanged.connect(self.set_export_action_enabled)
+        self.set_export_action_enabled()
         self.set_send_action_enabled()
+
+    @pyqtSlot()
+    @pyqtSlot(bool)
+    def set_export_action_enabled(self, enable=None):
+        if enable is None:
+            enable = self.selection.hasSelection()
+        self.action_export.setEnabled(enable)
 
     @pyqtSlot()
     @pyqtSlot(bool)
@@ -415,7 +424,6 @@ class RefaceDXLibApp(QApplication):
                             syx.write(patch.data)
                     except OSError as exc:
                         log.error("Could not write SysEx file at '%s': %s", filename, exc)
-
 
     def send_patches(self):
         if self.mainwin.selection.hasSelection():
