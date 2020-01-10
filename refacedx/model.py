@@ -100,6 +100,8 @@ class Tag(Base):
     def __unicode__(self):
         return self.name
 
+    __str__ = __unicode__
+
 
 patch_tag = Table(
     'patch_tag',
@@ -144,6 +146,8 @@ class Patch(Base):
     def __unicode__(self):
         return self.displayname
 
+    __str__ = __unicode__
+
     def update_tags(self, session, tags):
         self.tags = []
         for tagname in tags:
@@ -167,6 +171,8 @@ class Manufacturer(Base):
     def __unicode__(self):
         return self.name
 
+    __str__ = __unicode__
+
 
 class Device(Base):
     """Definition of device table."""
@@ -184,6 +190,8 @@ class Device(Base):
     def __unicode__(self):
         return self.name
 
+    __str__ = __unicode__
+
 
 class Author(Base):
     """Definition of author table."""
@@ -198,7 +206,9 @@ class Author(Base):
             self.name, self.id, self.displayname)
 
     def __unicode__(self):
-        return self.name
+        return self.displayname or name
+
+    __str__ = __unicode__
 
 
 if __name__ == '__main__':
