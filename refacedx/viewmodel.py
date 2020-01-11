@@ -10,7 +10,9 @@ from PyQt5.QtWidgets import QHeaderView
 from dateutil.parser import parse as parse_date
 from sqlalchemy import desc as sa_desc, inspect
 
+from .constants import PATCH_NAME_LENGTH
 from .model import Author, Device, Manufacturer, Patch, get_or_create
+from .util import set_patch_name
 
 
 log = logging.getLogger(__name__)
@@ -69,11 +71,14 @@ class SQLAlchemyTableModel(QAbstractTableModel):
         return name, getattr(self._rows[index.row()], name)
 
     def _set_field(self, index, value):
+        item = self._rows[index.row()]
         name = self.fields[index.column()][0]
         f = getattr(self, 'set_' + name, None)
         if f:
-            return f(index, value)
-        return setattr(self._rows[index.row()], name, value)
+            return f(index, item, value)
+
+        with self._session.begin():
+            return setattr(item, name, value)
 
     def _display_field(self, index, name, value):
         f = getattr(self, 'display_' + name, None)
@@ -178,9 +183,7 @@ class PatchlistTableModel(SQLAlchemyTableModel):
     def tooltip_displayname(self, index, value):
         return self._rows[index.row()].name
 
-    def set_author(self, index, value):
-        item = self._rows[index.row()]
-
+    def set_author(self, index, item, value):
         # Did value change?
         if item.author and item.author.name == value:
             return
@@ -194,16 +197,20 @@ class PatchlistTableModel(SQLAlchemyTableModel):
 
             item.author = author
 
-    def set_created(self, index, value):
+    def set_created(self, index, item, value):
         try:
             dt = parse_date(value)
         except (ValueError, OverflowError) as exc:
             log.debug("Could not parse date '%s': %s", value, exc)
         else:
-            item = self._rows[index.row()]
-
             if item.created != dt:
-                item.created = dt
+                with self._session.begin():
+                    item.created = dt
+
+    def set_name(self, index, item, value):
+        with self._session.begin():
+            item.name = value[:PATCH_NAME_LENGTH]
+            item.data = set_patch_name(item.data, value)
 
 
 class NamedItemsListModel(SQLAlchemyTableModel):
