@@ -99,6 +99,7 @@ class AddPatchDialog(QDialog, Ui_AddPatchDialog):
                 description=self.description_entry.toPlainText()
             )
 
+
 class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
     def __init__(self, title, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -123,6 +124,8 @@ class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
         self.selection.selectionChanged.connect(self.set_export_action_enabled)
         self.set_export_action_enabled()
         self.set_send_action_enabled()
+        self.table_patches.horizontalHeader().setSectionsMovable(True)
+        self.table_patches.verticalHeader().setSectionsMovable(True)
 
     @pyqtSlot()
     @pyqtSlot(bool)
