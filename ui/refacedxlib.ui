@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
+    <width>830</width>
     <height>600</height>
    </rect>
   </property>
@@ -159,8 +159,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
-     <height>28</height>
+     <width>830</width>
+     <height>29</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -177,6 +177,8 @@
      <string>&amp;Patch</string>
     </property>
     <addaction name="action_import"/>
+    <addaction name="action_export"/>
+    <addaction name="separator"/>
     <addaction name="action_request"/>
     <addaction name="action_send"/>
     <addaction name="separator"/>
@@ -185,7 +187,7 @@
    <addaction name="menu_File"/>
    <addaction name="menu_Patch"/>
   </widget>
-  <widget class="QToolBar" name="toolBar">
+  <widget class="QToolBar" name="toolbar">
    <property name="windowTitle">
     <string>toolBar</string>
    </property>
@@ -201,6 +203,7 @@
    <addaction name="separator"/>
    <addaction name="action_midi"/>
   </widget>
+  <widget class="QStatusBar" name="statusbar"/>
   <action name="action_quit">
    <property name="icon">
     <iconset theme="application-exit">
@@ -266,8 +269,7 @@
   </action>
   <action name="action_request">
    <property name="icon">
-    <iconset theme="stock_down">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="download"/>
    </property>
    <property name="text">
     <string>&amp;Request Patch </string>
@@ -280,6 +282,9 @@
    </property>
   </action>
   <action name="action_delete">
+   <property name="icon">
+    <iconset theme="delete"/>
+   </property>
    <property name="text">
     <string>&amp;Delete Patch(es)</string>
    </property>
@@ -307,13 +312,28 @@
   </action>
   <action name="action_midi">
    <property name="icon">
-    <iconset theme="audio-card"/>
+    <iconset theme="audio-card">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>MIDI Setup</string>
    </property>
    <property name="toolTip">
     <string>Show MIDI input and ouput port selection</string>
+   </property>
+  </action>
+  <action name="action_export">
+   <property name="icon">
+    <iconset theme="document-export"/>
+   </property>
+   <property name="text">
+    <string>&amp;Export Patch(es)...</string>
+   </property>
+   <property name="toolTip">
+    <string>Export Patch(es) to SysEx file(s)</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
    </property>
   </action>
  </widget>

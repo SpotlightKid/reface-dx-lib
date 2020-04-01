@@ -31,6 +31,7 @@ setup(
     install_requires=[
         'PyQt5',
         'python-rtmidi>=1.1.1',
+        'python-dateutil',
         'sqlalchemy>=1.2.0',
         'sqlalchemy-filters'
     ],

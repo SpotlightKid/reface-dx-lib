@@ -2,16 +2,18 @@
 
 # Form implementation generated from reading ui file 'ui/refacedxlib.ui'
 #
-# Created by: PyQt5 UI code generator 5.11.2
+# Created by: PyQt5 UI code generator 5.14.0
 #
 # WARNING! All changes made in this file will be lost!
 
+
 from PyQt5 import QtCore, QtGui, QtWidgets
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(800, 600)
+        MainWindow.resize(830, 600)
         MainWindow.setToolButtonStyle(QtCore.Qt.ToolButtonTextUnderIcon)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -92,16 +94,19 @@ class Ui_MainWindow(object):
         self.verticalLayout.addWidget(self.tabbox_patchlists)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 28))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 830, 29))
         self.menubar.setObjectName("menubar")
         self.menu_File = QtWidgets.QMenu(self.menubar)
         self.menu_File.setObjectName("menu_File")
         self.menu_Patch = QtWidgets.QMenu(self.menubar)
         self.menu_Patch.setObjectName("menu_Patch")
         MainWindow.setMenuBar(self.menubar)
-        self.toolBar = QtWidgets.QToolBar(MainWindow)
-        self.toolBar.setObjectName("toolBar")
-        MainWindow.addToolBar(QtCore.Qt.TopToolBarArea, self.toolBar)
+        self.toolbar = QtWidgets.QToolBar(MainWindow)
+        self.toolbar.setObjectName("toolbar")
+        MainWindow.addToolBar(QtCore.Qt.TopToolBarArea, self.toolbar)
+        self.statusbar = QtWidgets.QStatusBar(MainWindow)
+        self.statusbar.setObjectName("statusbar")
+        MainWindow.setStatusBar(self.statusbar)
         self.action_quit = QtWidgets.QAction(MainWindow)
         icon = QtGui.QIcon.fromTheme("application-exit")
         self.action_quit.setIcon(icon)
@@ -120,10 +125,12 @@ class Ui_MainWindow(object):
         self.action_send.setIconVisibleInMenu(False)
         self.action_send.setObjectName("action_send")
         self.action_request = QtWidgets.QAction(MainWindow)
-        icon = QtGui.QIcon.fromTheme("stock_down")
+        icon = QtGui.QIcon.fromTheme("download")
         self.action_request.setIcon(icon)
         self.action_request.setObjectName("action_request")
         self.action_delete = QtWidgets.QAction(MainWindow)
+        icon = QtGui.QIcon.fromTheme("delete")
+        self.action_delete.setIcon(icon)
         self.action_delete.setObjectName("action_delete")
         self.action_open = QtWidgets.QAction(MainWindow)
         icon = QtGui.QIcon.fromTheme("document-open")
@@ -133,22 +140,28 @@ class Ui_MainWindow(object):
         icon = QtGui.QIcon.fromTheme("audio-card")
         self.action_midi.setIcon(icon)
         self.action_midi.setObjectName("action_midi")
+        self.action_export = QtWidgets.QAction(MainWindow)
+        icon = QtGui.QIcon.fromTheme("document-export")
+        self.action_export.setIcon(icon)
+        self.action_export.setObjectName("action_export")
         self.menu_File.addSeparator()
         self.menu_File.addAction(self.action_open)
         self.menu_File.addSeparator()
         self.menu_File.addAction(self.action_quit)
         self.menu_Patch.addAction(self.action_import)
+        self.menu_Patch.addAction(self.action_export)
+        self.menu_Patch.addSeparator()
         self.menu_Patch.addAction(self.action_request)
         self.menu_Patch.addAction(self.action_send)
         self.menu_Patch.addSeparator()
         self.menu_Patch.addAction(self.action_delete)
         self.menubar.addAction(self.menu_File.menuAction())
         self.menubar.addAction(self.menu_Patch.menuAction())
-        self.toolBar.addAction(self.action_import)
-        self.toolBar.addAction(self.action_request)
-        self.toolBar.addAction(self.action_send)
-        self.toolBar.addSeparator()
-        self.toolBar.addAction(self.action_midi)
+        self.toolbar.addAction(self.action_import)
+        self.toolbar.addAction(self.action_request)
+        self.toolbar.addAction(self.action_send)
+        self.toolbar.addSeparator()
+        self.toolbar.addAction(self.action_midi)
 
         self.retranslateUi(MainWindow)
         self.tabbox_patchlists.setCurrentIndex(0)
@@ -163,7 +176,7 @@ class Ui_MainWindow(object):
         self.tabbox_patchlists.setTabText(self.tabbox_patchlists.indexOf(self.tab_patchsets), _translate("MainWindow", "Patch &Sets"))
         self.menu_File.setTitle(_translate("MainWindow", "&File"))
         self.menu_Patch.setTitle(_translate("MainWindow", "&Patch"))
-        self.toolBar.setWindowTitle(_translate("MainWindow", "toolBar"))
+        self.toolbar.setWindowTitle(_translate("MainWindow", "toolBar"))
         self.action_quit.setText(_translate("MainWindow", "&Quit"))
         self.action_quit.setIconText(_translate("MainWindow", "&Quit"))
         self.action_quit.setToolTip(_translate("MainWindow", "Exit application"))
@@ -185,4 +198,6 @@ class Ui_MainWindow(object):
         self.action_open.setShortcut(_translate("MainWindow", "Ctrl+O"))
         self.action_midi.setText(_translate("MainWindow", "MIDI Setup"))
         self.action_midi.setToolTip(_translate("MainWindow", "Show MIDI input and ouput port selection"))
-
+        self.action_export.setText(_translate("MainWindow", "&Export Patch(es)..."))
+        self.action_export.setToolTip(_translate("MainWindow", "Export Patch(es) to SysEx file(s)"))
+        self.action_export.setShortcut(_translate("MainWindow", "Ctrl+S"))

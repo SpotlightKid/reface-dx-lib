@@ -1,5 +1,6 @@
-# Icon library, we add those we need manually to refacedx/icons
-assets/icons/Faenza
+# auto-generated Qt resource files
+refacedx/*_rcc.py
+tango.qrc
 # auto-generated UI code
 refacedx/*_ui.py
 

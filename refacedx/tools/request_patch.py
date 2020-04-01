@@ -49,7 +49,8 @@ def main(args=None):
         '-n',
         '--add-program-number',
         action='store_true',
-        help="Prefix output file name with patch number (requires specifying patch number).")
+        help="Prefix output file name with patch number (requires specifying patch number(s) "
+             "and/or patch number range(s)).")
     ap.add_argument(
         '-o',
         '--output-port',
@@ -58,7 +59,7 @@ def main(args=None):
         default='reface DX',
         const=None,
         help="MIDI output port. May be a port number or port name sub-string or the option value "
-             "may be omitted, then the input port can be selected interactively "
+             "may be omitted, then the output port can be selected interactively "
              "(default: '%(default)s').")
     ap.add_argument(
         '-f',

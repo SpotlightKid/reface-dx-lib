@@ -69,7 +69,7 @@ class RefaceDX:
                 if is_reface_dx_bulk_dump(part, address=address):
                     patch += bytearray(part)
         except Empty:
-            raise TimeoutError
+            raise TimeoutError("No valid patch received within timeout (%s sec.)" % self.timeout)
         else:
             return patch
 

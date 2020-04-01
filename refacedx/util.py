@@ -2,12 +2,17 @@
 #
 # refacedx/util.py
 
-from .constants import (ADDRESSES_VOICE_BLOCK, REFACE_DX_MODEL_ID, SYSTEM_EXCLUSIVE,
-                        YAMAHA_MANUFACTURER_ID)
+import sys
+
+from .constants import (ADDRESSES_VOICE_BLOCK, PATCH_NAME_LENGTH, PATCH_NAME_OFFSET,
+                        REFACE_DX_MODEL_ID, SYSTEM_EXCLUSIVE, VOICE_COMMON_CHECKSUM_OFFSET,
+                        VOICE_COMMON_DATA_LENGTH, VOICE_COMMON_DATA_OFFSET, YAMAHA_MANUFACTURER_ID)
 
 
-def checksum(msg, offset=7, length=-2):
-    return sum(msg[offset:length]) & 0x7f
+def checksum(msg, offset=7, length=None):
+    if length is None:
+        length = len(msg) - 2
+    return ((sum(msg[offset:offset+length]) ^ 0x7f) & 0x7f) + 1
 
 
 def ellip(s, length=50, suffix='[...]'):
@@ -18,7 +23,37 @@ def ellip(s, length=50, suffix='[...]'):
 
 
 def get_patch_name(data, encoding='ascii'):
-    return data[24:34].decode(encoding).rstrip()
+    return data[PATCH_NAME_OFFSET:PATCH_NAME_OFFSET + PATCH_NAME_LENGTH].decode(encoding).rstrip()
+
+
+def set_patch_name(data, name):
+    patch = bytearray(data)
+    name = name.ljust(PATCH_NAME_LENGTH).encode('ascii')[:PATCH_NAME_LENGTH]
+    patch[PATCH_NAME_OFFSET:PATCH_NAME_OFFSET + PATCH_NAME_LENGTH] = name
+    patch[VOICE_COMMON_CHECKSUM_OFFSET] = checksum(patch, offset=VOICE_COMMON_DATA_OFFSET,
+                                                   length=VOICE_COMMON_DATA_LENGTH)
+    return patch
+
+
+if sys.platform.startswith('win'):
+    import cytpes
+    _NAME_DISPLAY = 3
+
+    def get_fullname():
+        GetUserNameEx = ctypes.windll.secur32.GetUserNameExW
+        size = ctypes.pointer(ctypes.c_ulong(0))
+        GetUserNameEx(_NAME_DISPLAY, None, size)
+        name_buf = ctypes.create_unicode_buffer(size.contents.value)
+        GetUserNameEx(_NAME_DISPLAY, name_buf, size)
+        return nameBuffer.value
+else:
+    import getpass
+    import pwd
+
+    def get_fullname():
+        """Get the current user's full name, if possible."""
+        username = getpass.getuser()
+        return pwd.getpwnam(username).pw_gecos.split(',')[0]
 
 
 def is_reface_dx_bulk_dump(msg, address=None, device=None):

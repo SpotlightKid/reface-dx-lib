@@ -6,17 +6,19 @@
 import logging
 import sys
 
+from datetime import datetime
 from functools import partial
 from os.path import basename, dirname, join, splitext
 
 from PyQt5.QtCore import QSettings, QThread, QTimer, Qt, pyqtSlot
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import (QApplication, QCompleter, QDialog, QFileDialog, QMainWindow,
-                             QMessageBox)
+from PyQt5.QtWidgets import (QApplication, QComboBox, QCompleter, QDialog, QFileDialog,
+                             QMainWindow, QMessageBox)
 
+from . import icons_rcc
 from .midithread import MidiWorker
-from .model import Patch, initdb
-from .util import is_reface_dx_voice, get_patch_name
+from .model import Author, Device, Manufacturer, Patch, initdb, get_or_create
+from .util import is_reface_dx_voice, get_fullname, get_patch_name, set_patch_name
 from .viewmodel import AuthorListModel, DeviceListModel, ManufacturerListModel, PatchlistTableModel
 
 from .adddialog_ui import Ui_AddPatchDialog
@@ -32,6 +34,7 @@ class AddPatchDialog(QDialog, Ui_AddPatchDialog):
         super().__init__(app.mainwin, *args, **kwargs)
         # Set up the user interface from Designer.
         self.setupUi(self)
+        self.created_dt.setCalendarPopup(True)
 
         # auto-completion set up
         self.name_completer = QCompleter(app.patches, self.name_entry)
@@ -56,9 +59,49 @@ class AddPatchDialog(QDialog, Ui_AddPatchDialog):
         self.device_cb.setModel(self.device_model)
         self.device_cb.setModelColumn(3)
 
+        self._last_author = None
+
+    def new_from_data(self, data, title=None):
+        if title:
+            self.setWindowTitle(title)
+
+        if self._last_author is None:
+            self._last_author = get_fullname()
+
+        name = get_patch_name(data)
+        self.name_entry.setText(name)
+        self.shortname_entry.setText(name)
+        self.created_dt.setDateTime(datetime.now())
+        self.rating_cb.setCurrentIndex(0)
+        self.tags_entry.setText('')
+        self.description_entry.setPlainText('')
+
+        author_idx = self.author_cb.findText(self._last_author)
+        if author_idx != -1:
+            self.author_cb.setCurrentIndex(author_idx)
+        else:
+            self.author_cb.setCurrentText(self._last_author)
+
+        self.manufacturer_cb.setEnabled(False)
+        self.device_cb.setEnabled(False)
+
+        if self.exec_() == QDialog.Accepted:
+            author = self.author_cb.currentText()
+            self._last_author = author
+            return dict(
+                name=self.shortname_entry.text(),
+                displayname=self.name_entry.text(),
+                author=author,
+                manufacturer=self.manufacturer_cb.currentText(),
+                device=self.device_cb.currentText(),
+                rating=self.rating_cb.currentIndex(),
+                tags=self.tags_entry.text(),
+                description=self.description_entry.toPlainText()
+            )
+
 
 class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, title, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set up the user interface from Designer.
         self.setupUi(self)
@@ -66,7 +109,7 @@ class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
         self.action_midi.triggered.connect(self.toggle_midi_options)
         # Set the size and title
         self.setMinimumSize(800, 600)
-        self.setWindowTitle("Reface DX Lib")
+        self.setWindowTitle(title)
 
     @pyqtSlot()
     def toggle_midi_options(self):
@@ -78,7 +121,23 @@ class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
         self._model.adapt_view(self.table_patches)
         self.selection = self.table_patches.selectionModel()
         self.selection.selectionChanged.connect(self.set_send_action_enabled)
+        self.selection.selectionChanged.connect(self.set_export_action_enabled)
+        self.set_export_action_enabled()
         self.set_send_action_enabled()
+        self.table_patches.horizontalHeader().setSectionsMovable(True)
+        self.table_patches.verticalHeader().setSectionsMovable(True)
+
+    @pyqtSlot()
+    @pyqtSlot(bool)
+    def set_export_action_enabled(self, enable=None):
+        if enable is None:
+            enable = self.selection.hasSelection()
+        self.action_export.setEnabled(enable)
+
+    @pyqtSlot()
+    @pyqtSlot(bool)
+    def set_request_action_enabled(self, enable=True):
+        self.action_request.setEnabled(enable)
 
     @pyqtSlot()
     @pyqtSlot(bool)
@@ -89,21 +148,27 @@ class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
 
 
 class RefaceDXLibApp(QApplication):
+    """The main application object with the central event handling."""
+
+    name = "Reface DX Lib"
+
     def __init__(self, args=None):
-        super().__init__(args or sys.argv)
+        if args is None:
+            args = sys.argv
+
+        super().__init__(args)
         self.setOrganizationName('chrisarndt.de')
         self.setOrganizationDomain('chrisarndt.de')
-        self.setApplicationName('Reface DX Lib')
+        self.setApplicationName(self.name)
         QSettings.setDefaultFormat(QSettings.IniFormat)
         self.config = QSettings()
         self.config.setIniCodec('UTF-8')
-        QIcon.setFallbackSearchPaths([join(dirname(__file__), "icons")])
-        QIcon.setThemeName(self.config.value('gui/icon_theme', "Faenza"))
+        QIcon.setThemeName(self.config.value('gui/icon_theme', "tango"))
         self.debug = True if '-v' in args[1:] else self.config.value('application/debug', False)
         logging.basicConfig(level=logging.DEBUG if self.debug else logging.INFO,
                             format='%(levelname)s - %(message)s')
 
-        self.mainwin = RefaceDXLibMainWin()
+        self.mainwin = RefaceDXLibMainWin(self.tr(self.name))
         db_uri = 'sqlite:///{}'.format(self.config.value('database/last_opened', 'refacedx.db'))
         self.session = initdb(db_uri, debug=self.config.value('database/debug', False))
         self.patches = PatchlistTableModel(self.session)
@@ -116,8 +181,9 @@ class RefaceDXLibApp(QApplication):
         self.aboutToQuit.connect(self.quit)
         self.mainwin.action_quit.triggered.connect(self.quit)
         self.mainwin.action_import.triggered.connect(self.import_patches)
+        self.mainwin.action_export.triggered.connect(self.export_patches)
         self.mainwin.action_send.triggered.connect(self.send_patches)
-        self.mainwin.action_request.triggered.connect(self.receive_patch)
+        self.mainwin.action_request.triggered.connect(self.request_patch)
         self.mainwin.action_delete.triggered.connect(self.delete_patches)
 
         # dialogs (initialized on-demand)
@@ -132,8 +198,15 @@ class RefaceDXLibApp(QApplication):
         self.midiworker.moveToThread(self.midithread)
 
         self.midithread.started.connect(self.midiworker.initialize)
-        self.midiworker.send_start.connect(partial(self.mainwin.set_send_action_enabled, False))
-        self.midiworker.send_complete.connect(partial(self.mainwin.set_send_action_enabled, True))
+        self.midiworker.send_patch_start.connect(
+            partial(self.mainwin.set_send_action_enabled, False))
+        self.midiworker.send_patch_complete.connect(
+            partial(self.mainwin.set_send_action_enabled, True))
+        self.midiworker.recv_patch_start.connect(
+            partial(self.mainwin.set_request_action_enabled, False))
+        self.midiworker.recv_patch_complete.connect(self.receive_patch)
+        self.midiworker.recv_patch_failed.connect(
+            partial(self.mainwin.set_request_action_enabled, True))
         self.midiworker.input_ports_changed.connect(self.build_midi_input_selector)
         self.midiworker.output_ports_changed.connect(self.build_midi_output_selector)
 
@@ -205,13 +278,79 @@ class RefaceDXLibApp(QApplication):
     def quit(self):
         self.midiworker.close.emit()
         self.midithread.quit()
+        self.midithread.wait()
         self.mainwin.close()
 
-    def receive_patch(self):
+    def save_patch(self, data, **meta):
+        name = meta.get('name', '').strip()
+
+        if not name:
+            name = get_patch_name(data)
+
+        with self.session.begin():
+            author = meta.get('author', '').strip()
+            if author:
+                author, created = get_or_create(
+                    self.session,
+                    Author,
+                    create_kwargs={'name': author},
+                    displayname=author)
+            else:
+                author = None
+
+            manufacturer = meta.get('manufacturer', '').strip()
+            if manufacturer:
+                manufacturer, created = get_or_create(
+                    self.session,
+                    Manufacturer,
+                    create_kwargs={'name': manufacturer},
+                    displayname=manufacturer)
+            else:
+                manufacturer = None
+
+            device = meta.get('device', '').strip()
+            if device:
+                device, created = get_or_create(
+                    self.session,
+                    Device,
+                    create_kwargs={'name': device},
+                    displayname=device)
+            else:
+                device = None
+
+            patch = Patch(
+                name=name,
+                displayname=meta.get('displayname', '').strip() or name,
+                description=meta.get('description', '').strip() or None,
+                rating=meta.get('rating', 0),
+                author=author,
+                manufacturer=manufacturer,
+                device=device,
+                created=meta.get('created', datetime.now()),
+                data=set_patch_name(data, name))
+            self.session.add(patch)
+
+            tags = (tag.strip() for tag in meta.get('tags', '').split(','))
+            patch.update_tags(self.session, (tag for tag in tags if tag))
+
+    def request_patch(self):
+        self.midiworker.request_patch.emit(None)
+
+    def receive_patch(self, data):
+        log.debug("Patch received: %s", get_patch_name(data))
+
         if self.add_patch_dialog is None:
             self.add_patch_dialog = AddPatchDialog(self)
 
-        self.add_patch_dialog.exec_()
+        metadata = self.add_patch_dialog.new_from_data(data, self.tr("Add new patch"))
+
+        if metadata:
+            log.debug("Patch meta data: %r", metadata)
+            self.save_patch(data, **metadata)
+            self.patches._update()
+            self.patches.layoutChanged.emit()
+
+        self.mainwin.set_request_action_enabled(True)
 
     def delete_patches(self):
         if self.mainwin.selection.hasSelection():
@@ -220,12 +359,13 @@ class RefaceDXLibApp(QApplication):
             msg_box = QMessageBox()
 
             if len(rows) == 1:
-                msg_box.setText("Delete patch '{}'?".format(patches[0]))
+                msg_box.setText(self.tr("Delete patch '{}'?").format(patches[0]))
             else:
-                msg_box.setText("Delete {} patches?".format(len(rows)))
+                msg_box.setText(self.tr("Delete {} patches?").format(len(rows)))
                 msg_box.setDetailedText('\n'.join(patches))
 
-            msg_box.setInformativeText("Patches can only be restored by re-importing them.")
+            msg_box.setInformativeText(
+                self.tr("Patches can only be restored by re-importing them."))
             msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
             msg_box.setDefaultButton(QMessageBox.Cancel)
             msg_box.setIcon(QMessageBox.Warning)
@@ -241,7 +381,7 @@ class RefaceDXLibApp(QApplication):
         if not self.config.value('native_dialogs', False):
             options |= QFileDialog.DontUseNativeDialog
 
-        files, _ = QFileDialog.getOpenFileNames(self.mainwin, "Import SysEx patches",
+        files, _ = QFileDialog.getOpenFileNames(self.mainwin, self.tr("Import SysEx patches"),
                                                 self.config.value('paths/last_import_path', ''),
                                                 "SysEx Files (*.syx);;All Files (*)",
                                                 options=options)
@@ -262,8 +402,63 @@ class RefaceDXLibApp(QApplication):
                         patch = Patch(name=name, displayname=displayname, data=data)
                         self.session.add(patch)
 
+            # TODO: check if any patches were actually added
             self.patches._update()
             self.patches.layoutChanged.emit()
+
+    def export_patches(self):
+        if self.mainwin.selection.hasSelection():
+            options = QFileDialog.Options()
+
+            if not self.config.value('native_dialogs', False):
+                options |= (QFileDialog.DontUseNativeDialog | QFileDialog.ShowDirsOnly |
+                            QFileDialog.DontResolveSymlinks)
+
+            dir_ = QFileDialog.getExistingDirectory(
+                self.mainwin,
+                self.tr("Choose directory to export SysEx patches"),
+                self.config.value('paths/last_export_path', ''),
+                options=options)
+
+            if dir_:
+                self.config.setValue('paths/last_export_path', dir_)
+
+                ignore_all = False
+                exported = 0
+                for row in self.mainwin.selection.selectedRows():
+                    patch = self.patches.get_row(row)
+
+                    try:
+                        filename = patch.displayname.replace(' ', '_') + '.syx'
+                        with open(join(dir_, filename), 'wb') as syx:
+                            syx.write(patch.data)
+                    except OSError as exc:
+                        log.error("Could not write SysEx file at '%s': %s", filename, exc)
+
+                        if ignore_all:
+                            continue
+
+                        dlg = self.create_error_dlg(self.tr("<b>Could not write SysEx file "
+                            "<i>{}</i>.</b>").format(basename(filename)),
+                            info=self.tr("Abort export, ignore error or ignore all errors?"),
+                            detail=str(exc))
+                        ret = dlg.exec_()
+
+                        if dlg.clickedButton() == dlg.btn_ignoreall:
+                            ignore_all = True
+                        elif ret == QMessageBox.Abort:
+                            log.warning("Patch export aborted.")
+                            break
+                        elif ret == QMessageBox.Ignore:
+                            pass
+                        else:
+                            log.error("Unknown error dialog response. This shouldn't happen.")
+                    else:
+                        exported += 1
+
+                self.set_status_text(self.tr("{} patches exported.").format(exported))
+            else:
+                self.set_status_text(self.tr("Patch export cancelled."))
 
     def send_patches(self):
         if self.mainwin.selection.hasSelection():
@@ -272,11 +467,31 @@ class RefaceDXLibApp(QApplication):
                 self.midiworker.send_patch.emit(patch.data)
                 log.debug("Sent patch: %s (%s)", patch.displayname, patch.name)
 
+    def create_error_dlg(self, message, info=None, detail=None):
+        dlg = QMessageBox()
+        dlg.setText(message)
+
+        if info:
+            dlg.setInformativeText(info)
+
+        if detail:
+            dlg.setDetailedText(detail)
+
+        dlg.setWindowTitle(self.name + self.tr(" - Error"))
+        dlg.setStandardButtons(QMessageBox.Abort | QMessageBox.Ignore)
+        dlg.btn_ignoreall = dlg.addButton(self.tr("Ignore A&ll"), QMessageBox.ActionRole)
+        dlg.setDefaultButton(QMessageBox.Ignore)
+        dlg.setIcon(QMessageBox.Critical)
+        return dlg
+
+    def set_status_text(self, message, timeout=5000):
+        self.mainwin.statusbar.showMessage(message, timeout)
+
 
 def main(args=None):
-    app = RefaceDXLibApp(sys.argv if args is None else args)
+    app = RefaceDXLibApp(args)
     return app.exec_()
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv) or 0)
+    sys.exit(main() or 0)
