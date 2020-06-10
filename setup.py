@@ -35,10 +35,19 @@ setup(
         'sqlalchemy>=1.2.0',
         'sqlalchemy-filters'
     ],
+    extras_require={
+        'soundmondo': [
+            'appdirs',
+            'cachecontrol',
+            'lockfile',
+            'requests',
+        ]
+    },
     entry_points={
         "console_scripts": [
             "reface-dx-lib = refacedx.app:main",
-            "reface-request-patch = refacedx.tools.request_patch:main"
+            "reface-request-patch = refacedx.tools.request_patch:main",
+            "reface-get-soundmondo-voice = refacedx.tools.get_soundmondo_voice:main [soundmondo]"
         ]
     },
     classifiers=[
@@ -54,6 +63,7 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3 :: Only',
         'Topic :: Multimedia :: Sound/Audio',
         'Topic :: Multimedia :: Sound/Audio :: MIDI',
