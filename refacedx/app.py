@@ -395,7 +395,7 @@ class RefaceDXLibApp(QApplication):
                     with open(file, 'rb') as syx:
                         data = syx.read()
 
-                    assert len(data) == 241
+                    #assert len(data) == 241
                     if is_reface_dx_voice(data):
                         name = get_patch_name(data)
                         displayname = splitext(basename(file))[0].replace('_', ' ').strip()
