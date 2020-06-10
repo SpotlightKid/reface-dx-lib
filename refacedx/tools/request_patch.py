@@ -84,8 +84,8 @@ def main(args=None):
         'patches',
         nargs='*',
         help="Patches to request. Each argument can be a patch number (1 to 32) or a patch number "
-             "range (e.g. '9-16'). If no positional arguments are given, the current patch is "
-             "requested.")
+             "range (e.g. '9-16'). If no positional arguments are given, the patch in the current "
+             "edit buffer is requested.")
 
     args = ap.parse_args(args if args is not None else sys.argv[1:])
     logging.basicConfig(level=logging.WARN if args.quiet else logging.INFO,
