@@ -6,6 +6,8 @@ SysEx patches from the computer to the synthesizer and vice versa.
 
 **This is still alpha-stage software and not yet fully functional!**
 
+<img alt="Screenshot" src="screenshot.png" title="Screenshot of main window" width="400" />
+
 
 ## Command Line Tools
 
