@@ -16,7 +16,7 @@ Requests a SysEx patch dump(s) from the Reface DX and saves it as a file.
 
 For example, if bank 3, slot 1 (i.e. program 17, counting from 1) contains a
 patch called "Cool Pad", the following command retrives it from a
-connected reface DX and saves it:
+connected Reface DX and saves it:
 
 ```console
 $ reface-request-patch 17
