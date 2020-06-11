@@ -36,7 +36,7 @@ def set_patch_name(data, name):
 
 
 if sys.platform.startswith('win'):
-    import cytpes
+    import ctypes
     _NAME_DISPLAY = 3
 
     def get_fullname():
@@ -45,7 +45,7 @@ if sys.platform.startswith('win'):
         GetUserNameEx(_NAME_DISPLAY, None, size)
         name_buf = ctypes.create_unicode_buffer(size.contents.value)
         GetUserNameEx(_NAME_DISPLAY, name_buf, size)
-        return nameBuffer.value
+        return name_buf.value
 else:
     import getpass
     import pwd
