@@ -85,66 +85,72 @@ class MidiWorker(QObject):
         return client.startswith(self.client_name + suffix) and name.startswith(prefix)
 
     def get_input_ports(self):
-        return [port for port in (self._midiin.get_ports() if self._midiin else [])
+        return [port for port in (self._midiin.get_ports() if self._midiin is not None else [])
                 if not self._filter_own_ports(port, ' Out', 'midi_out')]
 
     def get_output_ports(self):
-        return [port for port in (self._midiout.get_ports() if self._midiout else [])
+        return [port for port in (self._midiout.get_ports() if self._midiout is not None else [])
                 if not self._filter_own_ports(port, ' In', 'midi_in')]
 
     @pyqtSlot('PyQt_PyObject')
     def _set_input_port(self, port=None):
         log.debug("Trying to open input port %s...", port)
-        if self._midiin:
+        if self._midiin is not None and self._midiin.is_port_open():
             self._midiin.close_port()
 
         try:
             self._midiin = MidiIn(get_api_from_environment(), name=self.client_name + ' In')
-            self._midiin_ports = self.get_input_ports()
-
-            for i, name in enumerate(self._midiin_ports):
-                log.debug("Checking input port #%i %s", i, name)
-                if (isinstance(port, int) and port == i) or port == name:
-                    self._midiin.open_port(i, name='midi_in')
-                    self.config.setValue('midi/input_port', name)
-                    log.debug("Set MIDI input port to '%s'.", name)
-                    break
-            else:
-                self._midiin = self._midiin.open_virtual_port(name='midi_in')
-                name = "Virtual MIDI input"
-
-            self._midiin_name = name
         except Exception as exc:
-            log.error("Could not open MIDI input port '%s': %s", port, exc)
-            self._midiin = self._midiin_name = None
+            log.error("Could not create MIDI input client: %s", exc)
+        else:
+            try:
+                self._midiin_ports = self.get_input_ports()
+
+                for i, name in enumerate(self._midiin_ports):
+                    log.debug("Checking input port #%i %s", i, name)
+                    if (isinstance(port, int) and port == i) or port == name:
+                        self._midiin.open_port(i, name='midi_in')
+                        self.config.setValue('midi/input_port', name)
+                        log.debug("Set MIDI input port to '%s'.", name)
+                        break
+                else:
+                    self._midiin = self._midiin.open_virtual_port(name='midi_in')
+                    name = "Virtual MIDI input"
+
+                self._midiin_name = name
+            except Exception as exc:
+                log.error("Could not open MIDI input port '%s': %s", port, exc)
 
         self.midiio.midiin = self._midiin
 
     @pyqtSlot('PyQt_PyObject')
     def _set_output_port(self, port=None):
         log.debug("Trying to open output port %s...", port)
-        if self._midiout:
+        if self._midiout is not None and self._midiout.is_port_open():
             self._midiout.close_port()
 
         try:
             self._midiout = MidiOut(get_api_from_environment(), name=self.client_name + ' Out')
-            self._midiout_ports = self.get_output_ports()
-
-            for i, name in enumerate(self._midiout_ports):
-                log.debug("Checking output port #%i %s", i, name)
-                if (isinstance(port, int) and port == i) or port == name:
-                    self._midiout.open_port(i, name='midi_out')
-                    self.config.setValue('midi/output_port', name)
-                    log.debug("Set MIDI output port to '%s'.", name)
-                    break
-            else:
-                self._midiout.open_virtual_port(name='midi_out')
-                name = "Virtual MIDI output"
-
-            self._midiout_name = name
         except Exception as exc:
-            log.error("Could not open MIDI output port '%s': %s", port, exc)
-            self.midiout = self._midiout_name = None
+            log.error("Could not create MIDI output client: %s", exc)
+        else:
+            try:
+                self._midiout_ports = self.get_output_ports()
+
+                for i, name in enumerate(self._midiout_ports):
+                    log.debug("Checking output port #%i %s", i, name)
+                    if (isinstance(port, int) and port == i) or port == name:
+                        self._midiout.open_port(i, name='midi_out')
+                        self.config.setValue('midi/output_port', name)
+                        log.debug("Set MIDI output port to '%s'.", name)
+                        break
+                else:
+                    self._midiout.open_virtual_port(name='midi_out')
+                    name = "Virtual MIDI output"
+
+                self._midiout_name = name
+            except Exception as exc:
+                log.error("Could not open MIDI output port '%s': %s", port, exc)
 
         self.midiio.midiout = self._midiout
 
