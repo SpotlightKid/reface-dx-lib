@@ -27,7 +27,7 @@ setup(
     author="Christopher Arndt",
     author_email="info@chrisarndt.de",
     url="https://github.com/SpotlightKid/reface-dx-lib",
-    packages=["refacedx"],
+    packages=["refacedx", "refacedx.tools"],
     install_requires=[
         'PyQt5',
         'python-rtmidi>=1.1.1',
