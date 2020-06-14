@@ -7,10 +7,12 @@
 
 import argparse
 import logging
-import os.path
+import string
 import sys
 import time
+
 from datetime import datetime
+from os.path import exists, splitext
 
 from rtmidi.midiutil import open_midiinput, open_midioutput
 
@@ -21,75 +23,110 @@ from ..util import get_patch_name
 log = logging.getLogger(__name__)
 
 
+ILLEGAL_CHARS = r'\/:*"<>|'
+ALLOWED_CHARS = set(string.printable).difference("\t\n\r\x0b\x0c" + ILLEGAL_CHARS)
+PATH_SUBST_KEYS = (
+    "day",
+    "hour",
+    "minute",
+    "month",
+    "name",
+    "program",
+    "second",
+    "slot",
+    "year",
+)
+DATE_KEYS = ("year", "month", "day", "hour", "minute", "second")
+
+
+def sanitize_fn(fn, subst="_"):
+    return "".join((c if c in ALLOWED_CHARS else "_") for c in fn)
+
+
+def build_path(path, **data):
+    subst = {}
+    for key in PATH_SUBST_KEYS:
+        value = data.get(key)
+        if isinstance(value, str):
+            subst[key] = sanitize_fn(value)
+        elif isinstance(value, int):
+            subst[key] = value
+        else:
+            subst[key] = ""
+
+    return path.format(**subst)
+
+
 def main(args=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument(
-        '-c',
-        '--channel',
+        "-c",
+        "--channel",
         type=int,
         default=1,
-        help="MIDI channel to send program change(s) to (default: %(default)s)")
+        help="MIDI channel to send program change(s) to (default: %(default)s)",
+    )
     ap.add_argument(
-        '-d',
-        '--device',
+        "-d",
+        "--device",
         type=int,
         default=1,
-        help="MIDI SysEx device number to send patch request for (default: %(default)s).")
+        help="MIDI SysEx device number to send patch request for (default: %(default)s).",
+    )
     ap.add_argument(
-        '-i',
-        '--input-port',
-        metavar='PORT',
-        nargs='?',
-        default='reface DX',
+        "-i",
+        "--input-port",
+        metavar="PORT",
+        nargs="?",
+        default="reface DX",
         const=None,
         help="MIDI input port. May be a port number or port name sub-string or the option value "
-             "may be omitted, then the input port can be selected interactively "
-             "(default: '%(default)s').")
+        "may be omitted, then the input port can be selected interactively "
+        "(default: '%(default)s').",
+    )
     ap.add_argument(
-        '-n',
-        '--add-program-number',
-        action='store_true',
-        help="Prefix output file name with patch number (requires specifying patch number(s) "
-             "and/or patch number range(s)).")
-    ap.add_argument(
-        '-o',
-        '--output-port',
-        metavar='PORT',
-        nargs='?',
-        default='reface DX',
+        "-o",
+        "--output-port",
+        metavar="PORT",
+        nargs="?",
+        default="reface DX",
         const=None,
         help="MIDI output port. May be a port number or port name sub-string or the option value "
-             "may be omitted, then the output port can be selected interactively "
-             "(default: '%(default)s').")
+        "may be omitted, then the output port can be selected interactively "
+        "(default: '%(default)s').",
+    )
     ap.add_argument(
-        '-f',
-        '--filename',
-        help="Filename for sysex patch dump output (default: '<patch name>.syx').")
+        "-f",
+        "--output-path",
+        metavar="PATH",
+        default="{name}.syx",
+        help="Path of output file to write SysEx data to (default: '%(default)s')",
+    )
     ap.add_argument(
-        '-q',
-        '--quiet',
-        action='store_true',
-        help="Do not print messages except errors.")
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Do not print messages except errors.",
+    )
     ap.add_argument(
-        '-r',
-        '--replace',
-        action='store_true',
-        help="Replace existing output file(s) (default: no).")
+        "-r",
+        "--replace",
+        action="store_true",
+        help="Replace existing output file(s) (default: no).",
+    )
     ap.add_argument(
-        '-t',
-        '--add-timestamp',
-        action='store_true',
-        help="Add timestamp to output file name.")
-    ap.add_argument(
-        'patches',
-        nargs='*',
-        help="Patches to request. Each argument can be a patch number (1 to 32) or a patch number "
-             "range (e.g. '9-16'). If no positional arguments are given, the patch in the current "
-             "edit buffer is requested.")
+        "patches",
+        nargs="*",
+        help="Patches to request. Each argument can be a program number (1 to 32) or a program "
+        "number range (e.g. '9-16'). If no positional arguments are given, the patch in the "
+        "current edit buffer is requested.",
+    )
 
     args = ap.parse_args(args if args is not None else sys.argv[1:])
-    logging.basicConfig(level=logging.WARN if args.quiet else logging.INFO,
-                        format="%(levelname)s - %(message)s")
+    logging.basicConfig(
+        level=logging.WARN if args.quiet else logging.INFO,
+        format="%(levelname)s - %(message)s",
+    )
 
     try:
         midiin, midiin_name = open_midiinput(args.input_port)
@@ -104,8 +141,8 @@ def main(args=None):
         patches = set()
         for patchspec in args.patches:
             try:
-                if '-' in patchspec:
-                    lo, hi = [int(i) for i in patchspec.split('-', 1)]
+                if "-" in patchspec:
+                    lo, hi = [int(i) for i in patchspec.split("-", 1)]
                     patches.update(range(lo, hi + 1))
                 else:
                     patches.add(int(patchspec))
@@ -117,11 +154,15 @@ def main(args=None):
     for patchno in args.patches or [None]:
         if patchno is not None:
             if 32 >= patchno >= 1:
-                log.info("Sending program change #%i on channel %i...", patchno - 1, channel)
+                log.info(
+                    "Sending program change #%i on channel %i...", patchno - 1, channel
+                )
                 reface.send_program_change(patchno - 1)
                 time.sleep(0.1)
             else:
-                log.error("Skipping patch number %i, which is out of range (1..32).", patchno)
+                log.error(
+                    "Skipping patch number %i, which is out of range (1..32).", patchno
+                )
                 continue
 
         try:
@@ -130,40 +171,36 @@ def main(args=None):
         except TimeoutError:
             log.error("Did not receive patch dump within timeout.")
         else:
-            patch_name = get_patch_name(patch)
+            now = datetime.now()
+            data = {name: getattr(now, name) for name in DATE_KEYS}
+            data["name"] = get_patch_name(patch)
 
-            if args.filename:
-                outdir = os.path.dirname(args.filename)
-                outfn = os.path.basename(args.filename)
-            else:
-                outdir = ''
-                outfn = patch_name.replace(' ', '_')
-                outfn = outfn.replace('?', '_')
-                outfn = outfn.replace('*', '_')
-                outfn = outfn.replace(':', '_')
+            if patchno is not None:
+                data["program"] = patchno
+                data["slot"] = "{}-{}".format((patchno - 1) // 8 + 1, (patchno - 1) % 8 + 1)
 
-            if args.add_timestamp:
-                outfn += '_%s' % datetime.now().strftime('%Y%m%d-%H%M%S')
+            output_path = build_path(args.output_path, **data)
+            log.info("Output path (after substitution): %s", output_path)
 
-            if not outfn.endswith('.syx'):
-                outfn += '.syx'
+            if not splitext(output_path)[1]:
+                output_path += ".syx"
 
-            if patchno and args.add_program_number:
-                outfn = '%02i-%s' % (patchno, outfn)
-
-            outpath = os.path.join(outdir, outfn)
-
-            if os.path.exists(outpath):
+            if exists(output_path):
                 if args.replace:
-                    log.warn("Existing output file '%s' will be overwritten.", outpath)
+                    log.warn(
+                        "Existing output file '%s' will be overwritten.", output_path
+                    )
                 else:
-                    log.warn("Existing output file '%s' will not be overwritten.", outpath)
+                    log.warn(
+                        "Existing output file '%s' will not be overwritten.",
+                        output_path,
+                    )
                     continue
 
-            with open(outpath, 'wb') as sysex:
-                log.info("Writing patch '%s' to file '%s'...", patch_name, outpath)
+            with open(output_path, "wb") as sysex:
+                log.info("Writing patch '%s' to file '%s'...", data["name"], output_path)
                 sysex.write(patch)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]) or 0)

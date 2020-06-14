@@ -12,7 +12,8 @@ import string
 import sys
 import time
 
-from os.path import basename, exists
+from datetime import datetime
+from os.path import basename, exists, splitext
 from posixpath import join as pjoin
 
 import requests
@@ -29,21 +30,71 @@ else:
     from cachecontrol.heuristics import ExpiresAfter
 
 
-__appname__ = "refacedx-tools"
+__appname__ = "reface-dx-lib"
 __appauthor__ = "chrisarndt.de"
-log = logging.getLogger("get-soundmondo-voice")
+
 SOUNDMONDO_URL = "https://soundmondo.yamahasynth.com/"
 API_BASE_URL = pjoin(SOUNDMONDO_URL, "api/v1")
 VOICE_PAGE_URL_RX = re.compile(pjoin(SOUNDMONDO_URL, r"voices/(?P<voice_id>\d+)/?$"))
+DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 END_OF_EXCLUSIVE = b"\xF7"
 SYSTEM_EXCLUSIVE = b"\xF0"
-ILLEGAL_CHARS = r' \/:*"<>|'
+ILLEGAL_CHARS = r'\/:*"<>|'
 ALLOWED_CHARS = set(string.printable).difference("\t\n\r\x0b\x0c" + ILLEGAL_CHARS)
-MIDI_DEFAULT = object()
+OPTION_DEFAULT = object()
+PATH_SUBST_KEYS = (
+    "day",
+    "hour",
+    "id",
+    "minute",
+    "month",
+    "name",
+    "reface",
+    "second",
+    "user",
+    "user_id",
+    "year",
+)
+DATE_KEYS = ("year", "month", "day", "hour", "minute", "second")
+
+_http_session = None
+log = logging.getLogger("get-soundmondo-voice")
+
+
+def get_http_session():
+    global _http_session
+
+    if _http_session is None:
+        _http_session = requests.session()
+
+        if cachecontrol:
+            _http_session = cachecontrol.CacheControl(
+                _http_session,
+                cache=FileCache(
+                    user_cache_dir(__appname__, __appauthor__), forever=True
+                ),
+                heuristic=ExpiresAfter(days=14),
+            )
+
+    return _http_session
 
 
 def sanitize_fn(fn, subst="_"):
     return "".join((c if c in ALLOWED_CHARS else "_") for c in fn)
+
+
+def build_path(path, **data):
+    subst = {}
+    for key in PATH_SUBST_KEYS:
+        value = data.get(key)
+        if isinstance(value, str):
+            subst[key] = sanitize_fn(value)
+        elif isinstance(value, int):
+            subst[key] = value
+        else:
+            subst[key] = ""
+
+    return path.format(**subst)
 
 
 def parse_voice_id(voice_id):
@@ -57,6 +108,15 @@ def parse_voice_id(voice_id):
 
     if match:
         return match.group("voice_id")
+
+
+def parse_timestamp(datetimestr):
+    try:
+        dt = datetime.strptime(datetimestr, DATE_FORMAT)
+    except (TypeError, ValueError):
+        return {}
+    else:
+        return {name: getattr(dt, name) for name in DATE_KEYS}
 
 
 def send_sysex_file(filename, midiout, portname, delay=50):
@@ -83,7 +143,7 @@ def send_sysex_file(filename, midiout, portname, delay=50):
                     eox = data.find(END_OF_EXCLUSIVE, sox)
 
                     if eox >= 0:
-                        sysex_msg = data[sox : eox + 1]
+                        sysex_msg = data[sox:eox + 1]
                         # Python 2: convert data into list of integers
                         if isinstance(sysex_msg, str):
                             sysex_msg = [ord(c) for c in sysex_msg]
@@ -101,18 +161,29 @@ def send_sysex_file(filename, midiout, portname, delay=50):
             log.warning("File '%s' does not start with a SysEx message.", bn)
 
 
-def download_voice(voice_id):
-    voice_url = pjoin(API_BASE_URL, "voices", voice_id) + "/"
-    session = requests.session()
+def get_user_info(user_url):
+    resp = get_http_session().get(user_url, headers={"Accept": "application/json"})
 
-    if cachecontrol:
-        session = cachecontrol.CacheControl(
-            session,
-            cache=FileCache(user_cache_dir(__appname__, __appauthor__), forever=True),
-            heuristic=ExpiresAfter(days=14),
+    if resp.status_code != 200:
+        raise IOError(
+            "Failed to retrieve user information from '%s': %s"
+            % (user_url, resp.reason)
         )
 
-    resp = session.get(voice_url, headers={"Accept": "application/json"})
+    log.debug(
+        "Response headers:\n%s",
+        "\n".join("%s: %s" % (name, value) for name, value in resp.headers.items()),
+    )
+
+    try:
+        return resp.json()
+    except (KeyError, TypeError, ValueError) as exc:
+        raise IOError("Unexpected response data format: %s" % exc)
+
+
+def download_voice(voice_id):
+    voice_url = pjoin(API_BASE_URL, "voices", voice_id) + "/"
+    resp = get_http_session().get(voice_url, headers={"Accept": "application/json"})
 
     if resp.status_code != 200:
         raise IOError(
@@ -151,7 +222,7 @@ def main(args=None):
     padd(
         "-d",
         "--delay",
-        default="50",
+        default="10",
         metavar="MS",
         type=int,
         help="Delay between sending each SysEx message in milliseconds "
@@ -168,14 +239,15 @@ def main(args=None):
         "--send-midi",
         metavar="FILE",
         nargs="?",
-        const=MIDI_DEFAULT,
+        const=OPTION_DEFAULT,
         help="Send downloaded voice SysEx data or SysEx file to MIDI output",
     )
     padd(
-        "-o",
-        "--output-file",
+        "-f",
+        "--output-path",
         metavar="PATH",
-        help="Path of output file to write SysEx data to (default: patch name + '.syx')",
+        default="{name}.syx",
+        help="Path of output file to write SysEx data to (default: '%(default)s')",
     )
     padd(
         "-O",
@@ -186,14 +258,19 @@ def main(args=None):
     padd(
         "-p",
         "--port",
+        metavar="PORT",
+        nargs="?",
         default="reface DX",
-        help="MIDI output port name or number (default: %(default)r)",
+        const=None,
+        help="MIDI output port. May be a port number or port name sub-string "
+        "or the option value may be omitted, then the output port can be "
+        "selected interactively (default: '%(default)s').",
     )
     padd(
         "-r",
         "--replace",
         action="store_true",
-        help="Replace existing output file(s) (default: no)",
+        help="Replace existing output file (default: no)",
     )
     padd("-v", "--debug", action="store_true", help="Enable debug logging")
     padd("voice_id", metavar="ID", nargs="?", help="URL or ID of voice to download")
@@ -212,9 +289,10 @@ def main(args=None):
 
         return 0
 
-    if not args.voice_id and args.send_midi is MIDI_DEFAULT:
+    if not args.voice_id and args.send_midi is OPTION_DEFAULT:
         log.error(
-            "Option '-m/--midi' requires input file argument if no positional argument is given."
+            "Option '-m/--midi' requires input file argument if no positional "
+            "argument is given."
         )
         print()
         parser.print_help()
@@ -231,29 +309,49 @@ def main(args=None):
         except Exception as exc:
             log.error("Error downloading voice %s: %s", vid, exc)
             return 1
-
-        if not args.output_file:
-            args.output_file = sanitize_fn(data["name"]) + ".syx"
+        else:
+            data.update(parse_timestamp(data.get("updated")))
 
         if not args.no_file_output:
-            if args.output_file == "-":
-                write_sysex_to_file(fp, sys.stdout)
-            elif not args.replace and exists(args.output_file):
-                log.error(
-                    "Output file '%s' exist. Use option '-f/--force' to overwrite.",
-                    args.output_file,
-                )
-                return 1
+            if "{user" in args.output_path:
+                try:
+                    user_info = get_user_info(data["user"])
+                except Exception as exc:
+                    log.error("Error downloading user information: %s", exc)
+                    return 1
+                else:
+                    data["user"] = user_info.get(
+                        "display_name", "user-{}".format(user_info["id"])
+                    )
+                    data["user_id"] = user_info["id"]
+
+            output_path = build_path(args.output_path, **data)
+            log.debug("Output path (after substitution): %s", output_path)
+
+            if output_path == "-":
+                write_sysex_to_file(sys.stdout, data["messages"])
             else:
-                with open(args.output_file, "wb") as fp:
-                    log.info("Writing voice '%s' SysEx data to '%s'.", data['name'], args.output_file)
-                    write_sysex_to_file(fp, data["messages"])
+                if not splitext(output_path)[1]:
+                    output_path += ".syx"
+
+                if not args.replace and exists(output_path):
+                    log.error(
+                        "Output path '%s' exist. Use option '-f/--force' to overwrite.",
+                        args.output_path,
+                    )
+                    return 1
+                else:
+                    with open(output_path, "wb") as fp:
+                        log.info(
+                            "Writing voice '%s' SysEx data to '%s'.",
+                            data["name"],
+                            output_path,
+                        )
+                        write_sysex_to_file(fp, data["messages"])
 
     if args.send_midi:
         try:
-            midiout, portname = open_midioutput(
-                args.port, interactive=False, use_virtual=False
-            )
+            midiout, portname = open_midioutput(args.port)
         except rtmidi.InvalidPortError:
             log.error("Invalid MIDI port number or name.")
             log.error("Use '-l' option to list MIDI ports.")
@@ -264,12 +362,14 @@ def main(args=None):
 
         if args.voice_id:
             with midiout:
-                log.info("Sending voice '%s' SysEx data to '%s'.", data['name'], portname)
+                log.info(
+                    "Sending voice '%s' SysEx data to '%s'.", data["name"], portname
+                )
                 for i, msg in enumerate(data["messages"]):
+                    time.sleep(0.001 * args.delay)
                     log.debug("Sending message #%03i...", i)
                     midiout.send_message(msg)
-                    time.sleep(0.001 * args.delay)
-        elif args.send_midi is not MIDI_DEFAULT:
+        elif args.send_midi is not OPTION_DEFAULT:
             try:
                 with midiout:
                     send_sysex_file(args.send_midi, midiout, portname, args.delay)
