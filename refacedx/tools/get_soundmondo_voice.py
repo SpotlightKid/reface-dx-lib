@@ -61,6 +61,47 @@ _http_session = None
 log = logging.getLogger("get-soundmondo-voice")
 
 
+def build_path(path, **data):
+    subst = {}
+    for key in PATH_SUBST_KEYS:
+        value = data.get(key)
+        if isinstance(value, str):
+            subst[key] = sanitize_fn(value)
+        elif isinstance(value, int):
+            subst[key] = value
+        else:
+            subst[key] = ""
+
+    return path.format(**subst)
+
+
+def download_voice(voice_id):
+    voice_url = pjoin(API_BASE_URL, "voices", voice_id) + "/"
+    resp = get_http_session().get(voice_url, headers={"Accept": "application/json"})
+
+    if resp.status_code != 200:
+        raise IOError(
+            "Failed to retrieve voice data from '%s': %s" % (voice_url, resp.reason)
+        )
+
+    log.debug(
+        "Response headers:\n%s",
+        "\n".join("%s: %s" % (name, value) for name, value in resp.headers.items()),
+    )
+
+    try:
+        data = resp.json()
+        log.debug("Response data:\n%s", format_reponse_log(data))
+        messages = parse_sysex_messages(data["data"]["sysex"])
+        del data["data"]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise IOError("Unexpected response data format: %s" % exc)
+    else:
+        data["messages"] = messages
+
+    return data
+
+
 def get_http_session():
     global _http_session
 
@@ -79,22 +120,51 @@ def get_http_session():
     return _http_session
 
 
-def sanitize_fn(fn, subst="_"):
-    return "".join((c if c in ALLOWED_CHARS else "_") for c in fn)
+def get_user_info(user_url):
+    resp = get_http_session().get(user_url, headers={"Accept": "application/json"})
+
+    if resp.status_code != 200:
+        raise IOError(
+            "Failed to retrieve user information from '%s': %s"
+            % (user_url, resp.reason)
+        )
+
+    log.debug(
+        "Response headers:\n%s",
+        "\n".join("%s: %s" % (name, value) for name, value in resp.headers.items()),
+    )
+
+    try:
+        return resp.json()
+    except (KeyError, TypeError, ValueError) as exc:
+        raise IOError("Unexpected response data format: %s" % exc)
 
 
-def build_path(path, **data):
-    subst = {}
-    for key in PATH_SUBST_KEYS:
-        value = data.get(key)
-        if isinstance(value, str):
-            subst[key] = sanitize_fn(value)
-        elif isinstance(value, int):
-            subst[key] = value
-        else:
-            subst[key] = ""
+def format_reponse_log(data):
+    import copy
+    import json
+    data = copy.deepcopy(data)
+    data["data"]["sysex"] = ["..."]
+    return json.dumps(data, indent=2)
 
-    return path.format(**subst)
+
+def parse_sysex_messages(data):
+    messages = []
+
+    for i, part in enumerate(data):
+        msg = bytearray(v for _, v in sorted(part.items(), key=lambda i: int(i[0])))
+        log.debug("SysEx msg #%02i: %s", i, " ".join("%02X" % b for b in msg))
+        messages.append(msg)
+
+    return messages
+
+def parse_timestamp(datetimestr):
+    try:
+        dt = datetime.strptime(datetimestr, DATE_FORMAT)
+    except (TypeError, ValueError):
+        return {}
+    else:
+        return {name: getattr(dt, name) for name in DATE_KEYS}
 
 
 def parse_voice_id(voice_id):
@@ -110,13 +180,8 @@ def parse_voice_id(voice_id):
         return match.group("voice_id")
 
 
-def parse_timestamp(datetimestr):
-    try:
-        dt = datetime.strptime(datetimestr, DATE_FORMAT)
-    except (TypeError, ValueError):
-        return {}
-    else:
-        return {name: getattr(dt, name) for name in DATE_KEYS}
+def sanitize_fn(fn, subst="_"):
+    return "".join((c if c in ALLOWED_CHARS else "_") for c in fn)
 
 
 def send_sysex_file(filename, midiout, portname, delay=50):
@@ -160,55 +225,6 @@ def send_sysex_file(filename, midiout, portname, delay=50):
         else:
             log.warning("File '%s' does not start with a SysEx message.", bn)
 
-
-def get_user_info(user_url):
-    resp = get_http_session().get(user_url, headers={"Accept": "application/json"})
-
-    if resp.status_code != 200:
-        raise IOError(
-            "Failed to retrieve user information from '%s': %s"
-            % (user_url, resp.reason)
-        )
-
-    log.debug(
-        "Response headers:\n%s",
-        "\n".join("%s: %s" % (name, value) for name, value in resp.headers.items()),
-    )
-
-    try:
-        return resp.json()
-    except (KeyError, TypeError, ValueError) as exc:
-        raise IOError("Unexpected response data format: %s" % exc)
-
-
-def download_voice(voice_id):
-    voice_url = pjoin(API_BASE_URL, "voices", voice_id) + "/"
-    resp = get_http_session().get(voice_url, headers={"Accept": "application/json"})
-
-    if resp.status_code != 200:
-        raise IOError(
-            "Failed to retrieve voice data from '%s': %s" % (voice_url, resp.reason)
-        )
-
-    log.debug(
-        "Response headers:\n%s",
-        "\n".join("%s: %s" % (name, value) for name, value in resp.headers.items()),
-    )
-
-    messages = []
-    try:
-        data = resp.json()
-        for i, part in enumerate(data["data"]["sysex"]):
-            msg = bytearray(v for _, v in sorted(part.items(), key=lambda i: int(i[0])))
-            log.debug("Mgs #%02i: %s", i, " ".join("%0X" % b for b in msg))
-            messages.append(msg)
-    except (KeyError, TypeError, ValueError) as exc:
-        raise IOError("Unexpected response data format: %s" % exc)
-    else:
-        del data["data"]
-        data["messages"] = messages
-
-    return data
 
 
 def write_sysex_to_file(fobj, messages):
