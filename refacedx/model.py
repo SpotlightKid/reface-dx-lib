@@ -59,7 +59,7 @@ def get_or_create(session, model, create_method=None, create_kwargs=None, **kwar
 
 
 def initdb(db_uri=None, session=None, drop_all=False, debug=False):
-    """Create all tables in the database and add an initial admin user."""
+    """Create all tables in the database."""
     if not session:
         session = configure_session(db_uri, debug=debug)
 
@@ -86,7 +86,7 @@ class HexByteString(TypeDecorator):
 
 
 class Tag(Base):
-    """Definition of question tag table."""
+    """Definition of patch tag table."""
 
     __tablename__ = 'tag'
     id = Column(Integer, Sequence('tag_id_seq'), primary_key=True)
