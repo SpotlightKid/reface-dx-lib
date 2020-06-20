@@ -4,8 +4,12 @@
 
 import logging
 
-from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex, QVariant
-from PyQt5.QtWidgets import QHeaderView
+try:
+    from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex
+    from qtpy.QtWidgets import QHeaderView
+except ImportError:
+    from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex
+    from PyQt5.QtWidgets import QHeaderView
 
 from dateutil.parser import parse as parse_date
 from sqlalchemy import desc as sa_desc, inspect
@@ -105,7 +109,7 @@ class SQLAlchemyTableModel(QAbstractTableModel):
 
     def data(self, index, role):
         if not index.isValid():
-            return QVariant()
+            return None
 
         name, value = self._get_field(index)
         if role in (Qt.DisplayRole, Qt.EditRole):

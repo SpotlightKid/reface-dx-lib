@@ -3,8 +3,12 @@
 #
 # refacdedx/style.py
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPalette, QColor
+try:
+    from qtpy.QtCore import Qt
+    from qtpy.QtGui import QPalette, QColor
+except ImportError:
+    from PyQt5.QtCore import Qt
+    from PyQt5.QtGui import QPalette, QColor
 
 
 def css_rgb(color, a=None):

@@ -5,7 +5,10 @@
 
 import logging
 
-from PyQt5.QtCore import QSettings, QObject, Qt, pyqtSignal, pyqtSlot
+try:
+    from qtpy.QtCore import QSettings, QObject, Qt, Signal, Slot
+except ImportError:
+    from PyQt5.QtCore import QSettings, QObject, Qt, pyqtSignal as Signal, pyqtSlot as Slot
 
 from .midiio import RefaceDX, TimeoutError
 
@@ -22,19 +25,19 @@ class MidiWorker(QObject):
     This will be run in a QThread when the application starts.
 
     """
-    close = pyqtSignal()
-    send_patch = pyqtSignal(bytes)
-    send_patch_start = pyqtSignal()
-    send_patch_complete = pyqtSignal()
-    request_patch = pyqtSignal('PyQt_PyObject')
-    recv_patch_start = pyqtSignal()
-    recv_patch_complete = pyqtSignal(bytearray)
-    recv_patch_failed = pyqtSignal(str)
-    scan_ports = pyqtSignal()
-    set_output_port = pyqtSignal('PyQt_PyObject')
-    set_input_port = pyqtSignal('PyQt_PyObject')
-    input_ports_changed = pyqtSignal('PyQt_PyObject')
-    output_ports_changed = pyqtSignal('PyQt_PyObject')
+    close = Signal()
+    send_patch = Signal(bytes)
+    send_patch_start = Signal()
+    send_patch_complete = Signal()
+    request_patch = Signal(object)
+    recv_patch_start = Signal()
+    recv_patch_complete = Signal(bytearray)
+    recv_patch_failed = Signal(str)
+    scan_ports = Signal()
+    set_output_port = Signal(object)
+    set_input_port = Signal(object)
+    input_ports_changed = Signal(object)
+    output_ports_changed = Signal(object)
 
     def __init__(self, config, *args, **kw):
         super().__init__(*args, **kw)
@@ -53,7 +56,7 @@ class MidiWorker(QObject):
         self.send_patch.connect(self._send_patch, type=Qt.QueuedConnection)
         self.request_patch.connect(self._request_patch, type=Qt.QueuedConnection)
 
-    @pyqtSlot()
+    @Slot()
     def initialize(self):
         log.debug('Initializing MidiWorker.')
         self.midiio = RefaceDX(channel=self.channel)
@@ -92,7 +95,7 @@ class MidiWorker(QObject):
         return [port for port in (self._midiout.get_ports() if self._midiout is not None else [])
                 if not self._filter_own_ports(port, ' In', 'midi_in')]
 
-    @pyqtSlot('PyQt_PyObject')
+    @Slot(object)
     def _set_input_port(self, port=None):
         log.debug("Trying to open input port %s...", port)
         if self._midiin is not None and self._midiin.is_port_open():
@@ -123,7 +126,7 @@ class MidiWorker(QObject):
 
         self.midiio.midiin = self._midiin
 
-    @pyqtSlot('PyQt_PyObject')
+    @Slot(object)
     def _set_output_port(self, port=None):
         log.debug("Trying to open output port %s...", port)
         if self._midiout is not None and self._midiout.is_port_open():
@@ -154,8 +157,8 @@ class MidiWorker(QObject):
 
         self.midiio.midiout = self._midiout
 
-    @pyqtSlot()
-    @pyqtSlot(int)
+    @Slot()
+    @Slot(int)
     def _request_patch(self, program=None):
         if program is not None:
             log.debug("Sending program change %d (ch=%d).", program, self.channel)
@@ -172,14 +175,14 @@ class MidiWorker(QObject):
             log.debug("Patch data received.")
             self.recv_patch_complete.emit(patch)
 
-    @pyqtSlot(bytes)
+    @Slot(bytes)
     def _send_patch(self, data):
         self.send_patch_start.emit()
         log.debug("Sending patch data.")
         self.midiio.send_patch(data)
         self.send_patch_complete.emit()
 
-    @pyqtSlot()
+    @Slot()
     def _scan_ports(self, init=False):
         log.debug("Scanning MIDI input and output ports...")
 

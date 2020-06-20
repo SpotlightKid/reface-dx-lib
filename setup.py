@@ -29,7 +29,7 @@ setup(
     url="https://github.com/SpotlightKid/reface-dx-lib",
     packages=["refacedx", "refacedx.tools"],
     install_requires=[
-        'PyQt5',
+        'qtpy',
         'python-rtmidi>=1.1.1',
         'python-dateutil',
         'sqlalchemy>=1.2.0',
@@ -41,10 +41,12 @@ setup(
             'cachecontrol',
             'lockfile',
             'requests',
-        ]
+        ],
+        'pyqt': ['PyQt5'],
+        'pyside': ['PySide2'],
     },
     entry_points={
-        "console_scripts": [
+        'console_scripts': [
             "reface-dx-lib = refacedx.app:main",
             "reface-request-patch = refacedx.tools.request_patch:main",
             "reface-get-soundmondo-voice = refacedx.tools.get_soundmondo_voice:main [soundmondo]"

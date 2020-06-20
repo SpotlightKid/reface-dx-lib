@@ -10,10 +10,16 @@ from datetime import datetime
 from functools import partial
 from os.path import basename, dirname, join, splitext
 
-from PyQt5.QtCore import QSettings, QThread, QTimer, Qt, pyqtSlot
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import (QApplication, QComboBox, QCompleter, QDialog, QFileDialog,
-                             QMainWindow, QMessageBox)
+try:
+    from qtpy.QtCore import QSettings, QThread, QTimer, Qt, Slot
+    from qtpy.QtGui import QIcon
+    from qtpy.QtWidgets import (QApplication, QComboBox, QCompleter, QDialog, QFileDialog,
+                                 QMainWindow, QMessageBox)
+except ImportError:
+    from PyQt5.QtCore import QSettings, QThread, QTimer, Qt, pyqtSlot as Slot
+    from PyQt5.QtGui import QIcon
+    from PyQt5.QtWidgets import (QApplication, QComboBox, QCompleter, QDialog, QFileDialog,
+                                 QMainWindow, QMessageBox)
 
 from . import icons_rcc
 from .midithread import MidiWorker
@@ -111,7 +117,7 @@ class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
         self.setMinimumSize(800, 600)
         self.setWindowTitle(title)
 
-    @pyqtSlot()
+    @Slot()
     def toggle_midi_options(self):
         self.midi_setup.setVisible(not self.midi_setup.isVisible())
 
@@ -127,24 +133,24 @@ class RefaceDXLibMainWin(QMainWindow, Ui_MainWindow):
         self.table_patches.horizontalHeader().setSectionsMovable(True)
         self.table_patches.verticalHeader().setSectionsMovable(True)
 
-    @pyqtSlot()
-    @pyqtSlot(bool)
+    @Slot()
+    @Slot(bool)
     def set_export_action_enabled(self, enable=None):
         if enable is None:
             enable = self.selection.hasSelection()
-        self.action_export.setEnabled(enable)
+        self.action_export.setEnabled(bool(enable))
 
-    @pyqtSlot()
-    @pyqtSlot(bool)
+    @Slot()
+    @Slot(bool)
     def set_request_action_enabled(self, enable=True):
         self.action_request.setEnabled(enable)
 
-    @pyqtSlot()
-    @pyqtSlot(bool)
+    @Slot()
+    @Slot(bool)
     def set_send_action_enabled(self, enable=None):
         if enable is None:
             enable = self.selection.hasSelection()
-        self.action_send.setEnabled(enable)
+        self.action_send.setEnabled(bool(enable))
 
 
 class RefaceDXLibApp(QApplication):
@@ -216,13 +222,13 @@ class RefaceDXLibApp(QApplication):
         self.timer.timeout.connect(self.midiworker.scan_ports.emit)
         self.timer.start(3000)
 
-    @pyqtSlot('PyQt_PyObject')
+    @Slot(object)
     def build_midi_input_selector(self, ports):
         log.debug("Building MIDI input selector...")
         cb = self.mainwin.midiin_cb
 
         if self.midiin_conn:
-            cb.currentIndexChanged.disconnect(self.midiin_conn)
+            cb.currentIndexChanged.disconnect(self.set_midiin_port)
 
         cb.setEnabled(False)
         cb.clear()
@@ -239,13 +245,13 @@ class RefaceDXLibApp(QApplication):
         cb.setEnabled(True)
         log.debug("MIDI input selector (re-)built.")
 
-    @pyqtSlot('PyQt_PyObject')
+    @Slot(object)
     def build_midi_output_selector(self, ports):
         log.debug("Building MIDI output selector...")
         cb = self.mainwin.midiout_cb
 
         if self.midiout_conn:
-            cb.currentIndexChanged.disconnect(self.midiout_conn)
+            cb.currentIndexChanged.disconnect(self.set_midiout_port)
 
         cb.setEnabled(False)
         cb.clear()
