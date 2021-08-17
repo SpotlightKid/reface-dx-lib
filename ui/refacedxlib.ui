@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>830</width>
+    <width>878</width>
     <height>600</height>
    </rect>
   </property>
@@ -159,8 +159,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>830</width>
-     <height>29</height>
+     <width>878</width>
+     <height>27</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -269,7 +269,8 @@
   </action>
   <action name="action_request">
    <property name="icon">
-    <iconset theme="download"/>
+    <iconset theme="download">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Request Patch </string>
@@ -283,7 +284,8 @@
   </action>
   <action name="action_delete">
    <property name="icon">
-    <iconset theme="delete"/>
+    <iconset theme="delete">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Delete Patch(es)</string>
@@ -301,7 +303,7 @@
      <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
-    <string>&amp;Open patch database</string>
+    <string>&amp;Open patch database...</string>
    </property>
    <property name="toolTip">
     <string>Load patch database from file</string>
@@ -324,7 +326,8 @@
   </action>
   <action name="action_export">
    <property name="icon">
-    <iconset theme="document-export"/>
+    <iconset theme="document-export">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Export Patch(es)...</string>

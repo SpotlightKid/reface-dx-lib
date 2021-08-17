@@ -5,32 +5,29 @@
 
 import logging
 import sys
-
 from datetime import datetime
 from functools import partial
-from os.path import basename, dirname, join, splitext
+from os.path import basename, dirname, exists, join, splitext
 
 try:
-    from qtpy.QtCore import QSettings, QThread, QTimer, Qt, Slot
+    from qtpy.QtCore import QSettings, Qt, QThread, QTimer, Slot
     from qtpy.QtGui import QIcon
     from qtpy.QtWidgets import (QApplication, QComboBox, QCompleter, QDialog, QFileDialog,
-                                 QMainWindow, QMessageBox)
+                                QMainWindow, QMessageBox)
 except ImportError:
     from PyQt5.QtCore import QSettings, QThread, QTimer, Qt, pyqtSlot as Slot
     from PyQt5.QtGui import QIcon
-    from PyQt5.QtWidgets import (QApplication, QComboBox, QCompleter, QDialog, QFileDialog,
-                                 QMainWindow, QMessageBox)
+    from PyQt5.QtWidgets import (QApplication, QComboBox, QCompleter, QDialog,
+                                 QFileDialog, QMainWindow, QMessageBox)
 
 from . import icons_rcc
-from .midithread import MidiWorker
-from .model import Author, Device, Manufacturer, Patch, initdb, get_or_create
-from .util import is_reface_dx_voice, get_fullname, get_patch_name, set_patch_name
-from .viewmodel import AuthorListModel, DeviceListModel, ManufacturerListModel, PatchlistTableModel
-
 from .adddialog_ui import Ui_AddPatchDialog
+from .midithread import MidiWorker
+from .model import Author, Device, Manufacturer, Patch, get_or_create, initdb
 from .refacedxlib_ui import Ui_MainWindow
 from .style import DarkAppStyle
-
+from .util import get_fullname, get_patch_name, is_reface_dx_voice, set_patch_name
+from .viewmodel import AuthorListModel, DeviceListModel, ManufacturerListModel, PatchlistTableModel
 
 log = logging.getLogger('refacedx')
 
@@ -175,16 +172,15 @@ class RefaceDXLibApp(QApplication):
                             format='%(levelname)s - %(message)s')
 
         self.mainwin = RefaceDXLibMainWin(self.tr(self.name))
-        db_uri = 'sqlite:///{}'.format(self.config.value('database/last_opened', 'refacedx.db'))
-        self.session = initdb(db_uri, debug=self.config.value('database/debug', False))
-        self.patches = PatchlistTableModel(self.session)
-        self.mainwin.set_patchtable_model(self.patches)
+        self.load_database(self.config.value('database/last_opened', 'refacedx.db'))
+
         self.midiin_conn = None
         self.midiout_conn = None
         self.setup_midi_thread()
 
         # signal connections
         self.aboutToQuit.connect(self.quit)
+        self.mainwin.action_open.triggered.connect(self.open_database)
         self.mainwin.action_quit.triggered.connect(self.quit)
         self.mainwin.action_import.triggered.connect(self.import_patches)
         self.mainwin.action_export.triggered.connect(self.export_patches)
@@ -197,6 +193,12 @@ class RefaceDXLibApp(QApplication):
 
         self.style = DarkAppStyle(self)
         self.mainwin.show()
+
+    def load_database(self, filename):
+        db_uri = 'sqlite:///{}'.format(filename)
+        self.session = initdb(db_uri, debug=self.config.value('database/debug', False))
+        self.patches = PatchlistTableModel(self.session)
+        self.mainwin.set_patchtable_model(self.patches)
 
     def setup_midi_thread(self):
         self.midithread = QThread()
@@ -286,6 +288,31 @@ class RefaceDXLibApp(QApplication):
         self.midithread.quit()
         self.midithread.wait()
         self.mainwin.close()
+
+    def open_database(self):
+        options = QFileDialog.Options()
+
+        if not self.config.value('native_dialogs', False):
+            options |= QFileDialog.DontUseNativeDialog
+
+        filename, _ = QFileDialog.getOpenFileName(self.mainwin, self.tr("Open patch database"),
+                                                  self.config.value('paths/last_database_path', ''),
+                                                  "SQLite Database (*.sqlite *.db);;All Files (*)",
+                                                  options=options)
+
+        if filename and exists(filename):
+            self.config.setValue('paths/last_database_path', dirname(filename))
+            log.info(f"Opening database file '{filename}'...")
+            try:
+                self.load_database(filename)
+            except Exception as exc:
+                log.exception(f"Error opening database file '{filename}'.")
+                dlg = self.create_error_dlg(
+                    self.tr("Could not load patch database <i>{}</i>.").format(basename(filename)),
+                    detail=str(exc), ignore_buttons=False)
+                dlg.exec_()
+            else:
+                self.config.setValue('database/last_opened', filename)
 
     def save_patch(self, data, **meta):
         name = meta.get('name', '').strip()
@@ -444,8 +471,8 @@ class RefaceDXLibApp(QApplication):
                         if ignore_all:
                             continue
 
-                        dlg = self.create_error_dlg(self.tr("<b>Could not write SysEx file "
-                            "<i>{}</i>.</b>").format(basename(filename)),
+                        dlg = self.create_error_dlg(self.tr("Could not write SysEx file "
+                            "<i>{}</i>.").format(basename(filename)),
                             info=self.tr("Abort export, ignore error or ignore all errors?"),
                             detail=str(exc))
                         ret = dlg.exec_()
@@ -473,7 +500,7 @@ class RefaceDXLibApp(QApplication):
                 self.midiworker.send_patch.emit(patch.data)
                 log.debug("Sent patch: %s (%s)", patch.displayname, patch.name)
 
-    def create_error_dlg(self, message, info=None, detail=None):
+    def create_error_dlg(self, message, info=None, detail=None, ignore_buttons=True):
         dlg = QMessageBox()
         dlg.setText(message)
 
@@ -484,10 +511,15 @@ class RefaceDXLibApp(QApplication):
             dlg.setDetailedText(detail)
 
         dlg.setWindowTitle(self.name + self.tr(" - Error"))
-        dlg.setStandardButtons(QMessageBox.Abort | QMessageBox.Ignore)
-        dlg.btn_ignoreall = dlg.addButton(self.tr("Ignore A&ll"), QMessageBox.ActionRole)
-        dlg.setDefaultButton(QMessageBox.Ignore)
         dlg.setIcon(QMessageBox.Critical)
+
+        if ignore_buttons:
+            dlg.setStandardButtons(QMessageBox.Abort | QMessageBox.Ignore)
+            dlg.btn_ignoreall = dlg.addButton(self.tr("Ignore A&ll"), QMessageBox.ActionRole)
+            dlg.setDefaultButton(QMessageBox.Ignore)
+        else:
+            dlg.setDefaultButton(QMessageBox.NoButton)
+
         return dlg
 
     def set_status_text(self, message, timeout=5000):
