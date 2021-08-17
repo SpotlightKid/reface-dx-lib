@@ -16,4 +16,4 @@ $(PKG_DIR)/icons_rcc.py: icons/$(ICON_THEME)/index.theme
 	./scripts/generate_rcc.py --rcc $(PYRCC) -o $@ $<
 
 $(PKG_DIR)/%_ui.py: $(UI_DIR)/%.ui
-	$(PYUIC) $< > $@
+	$(PYUIC) -o $@ $<
