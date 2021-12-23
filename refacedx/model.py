@@ -206,7 +206,7 @@ class Author(Base):
             self.name, self.id, self.displayname)
 
     def __unicode__(self):
-        return self.displayname or name
+        return self.displayname or self.name
 
     __str__ = __unicode__
 
