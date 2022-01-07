@@ -7,13 +7,14 @@ Optionally send it via MIDI to the Reface DX.
 
 import argparse
 import logging
+import os
 import re
 import string
 import sys
 import time
 
 from datetime import datetime
-from os.path import basename, exists, splitext
+from os.path import basename, dirname, exists, splitext
 from posixpath import join as pjoin
 
 import requests
@@ -357,6 +358,9 @@ def main(args=None):
                     )
                     return 1
                 else:
+                    if not exists(dirname(output_path)):
+                        os.makedirs(dirname(output_path))
+
                     with open(output_path, "wb") as fp:
                         log.info(
                             "Writing voice '%s' SysEx data to '%s'.",
