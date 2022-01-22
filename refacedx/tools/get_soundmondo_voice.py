@@ -14,7 +14,7 @@ import sys
 import time
 
 from datetime import datetime
-from os.path import basename, dirname, exists, splitext
+from os.path import basename, dirname, exists, splitext, split as pathsplit
 from posixpath import join as pjoin
 
 import requests
@@ -358,8 +358,9 @@ def main(args=None):
                     )
                     return 1
                 else:
-                    if not exists(dirname(output_path)):
-                        os.makedirs(dirname(output_path))
+                    head, tail = pathsplit(output_path)
+                    if head and not exists(head):
+                        os.makedirs(dirname(head))
 
                     with open(output_path, "wb") as fp:
                         log.info(
